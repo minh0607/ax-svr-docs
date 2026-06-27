@@ -22,6 +22,7 @@ Bộ script tạo role/database/phân quyền. Dùng cho **DevDB** và **Product
 | `setup-group-roles.sh <db>` | Tạo nhóm `<db>_readonly` / `<db>_readwrite` + default privileges |
 | `grant-table.sh <grant\|revoke> <role> <db> <table> <privs>` | Phân quyền theo từng bảng |
 | `reset-password.sh <role>` | Đổi mật khẩu role (nhập 2 lần, ẩn) |
+| `bind-user-ip.sh <user> <ip[,ip2]>` / `<user> --unpin` | **Pin user chỉ từ IP cụ thể** (sửa pg_hba) |
 | `drop-user.sh <user> [reassign_to]` | **Xoá user an toàn** — chuyển object sang owner khác rồi drop |
 | `drop-database.sh <db>` | **Xoá database an toàn** — nhắc backup + gõ lại tên + FORCE |
 | `list-access.sh <roles\|dbs\|members <g>\|grants <db>>` | Xem role/db/quyền |
@@ -62,6 +63,20 @@ Quyền gắn vào NHÓM (group role), KHÔNG gắn trực tiếp vào từng us
   appdb_readwrite ← dev_b, app_service...
 => thêm/bớt người chỉ cần GRANT/REVOKE nhóm; quyền bảng mới tự áp nhờ DEFAULT PRIVILEGES.
 ```
+
+## Pin account vào IP cụ thể (`bind-user-ip.sh`)
+
+IP **không** gán ở account — gán ở `pg_hba.conf`. Script này quản lý giúp:
+```bash
+./bind-user-ip.sh app_svc 10.1.1.101          # app_svc CHỈ từ IP này
+./bind-user-ip.sh dev_a   192.0.2.10,192.0.2.11  # nhiều IP
+./bind-user-ip.sh dev_a   --unpin             # bỏ pin -> theo rule chung
+```
+- Cơ chế: thêm `include_if_exists pg_hba_peruser.conf` ở đầu `pg_hba.conf`, ghi block `allow <IP> + reject mọi IP khác` cho user, rồi reload + kiểm tra lỗi.
+- **Dùng khi:** account IP cố định (service account, server, máy DBA). **Không nên** pin dev laptop IP hay đổi (phải sửa + reload mỗi lần).
+- **3 lớp:** ufw (IP toàn cục) · pg_hba/pin (IP theo user) · GRANT (quyền table).
+
+> ⚠️ **Production (Patroni):** `pg_hba` do Patroni quản lý — KHÔNG sửa file (sẽ bị ghi đè). Thêm rule per-user vào `patroni.yml` mục `bootstrap.dcs.postgresql.pg_hba` hoặc `patronictl edit-config`, rồi `patronictl reload`. `bind-user-ip.sh` chỉ dành cho DevDB/standalone.
 
 ## Lưu ý bảo mật
 
