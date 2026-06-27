@@ -2,6 +2,28 @@
 
 Bộ script tạo role/database/phân quyền. Dùng cho **DevDB** và **Production** (Patroni).
 
+## ⭐ Script TỔNG: `axdb.sh` (1 file, gộp tất cả)
+
+Nếu muốn **1 script duy nhất**, dùng `axdb.sh <command>` (self-contained, không cần file khác):
+```bash
+./axdb.sh help                              # xem tất cả lệnh
+./axdb.sh create-admin dbadmin
+./axdb.sh create-db appdb dbadmin
+./axdb.sh setup-groups appdb
+./axdb.sh create-user dev_a appdb_readonly
+./axdb.sh grant dev_a appdb orders "SELECT,INSERT"
+./axdb.sh passwd dev_a
+./axdb.sh bind-ip a 1.1.1.1                  # tự nhận DevDB(file) hay Patroni(DCS)
+./axdb.sh drop-user dev_a
+./axdb.sh drop-db appdb
+./axdb.sh list roles
+```
+> `bind-ip` **tự phát hiện**: có `patronictl` + `/etc/patroni/patroni.yml` → dùng DCS; ngược lại sửa file. Ép bằng `--file` / `--patroni`.
+
+Các script rời bên dưới vẫn dùng được (cùng logic) — chọn 1 trong 2 cách.
+
+---
+
 ## Kết nối với quyền admin
 
 | Cách | Lệnh |
