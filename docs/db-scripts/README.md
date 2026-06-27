@@ -21,7 +21,14 @@ Bộ script tạo role/database/phân quyền. Dùng cho **DevDB** và **Product
 | `create-database.sh <db> [owner]` | Tạo database + thu hồi quyền PUBLIC |
 | `setup-group-roles.sh <db>` | Tạo nhóm `<db>_readonly` / `<db>_readwrite` + default privileges |
 | `grant-table.sh <grant\|revoke> <role> <db> <table> <privs>` | Phân quyền theo từng bảng |
+| `reset-password.sh <role>` | Đổi mật khẩu role (nhập 2 lần, ẩn) |
+| `drop-user.sh <user> [reassign_to]` | **Xoá user an toàn** — chuyển object sang owner khác rồi drop |
+| `drop-database.sh <db>` | **Xoá database an toàn** — nhắc backup + gõ lại tên + FORCE |
 | `list-access.sh <roles\|dbs\|members <g>\|grants <db>>` | Xem role/db/quyền |
+
+### Lưu ý các script XOÁ (destructive)
+- `drop-user.sh`: chặn xoá role bảo vệ (`postgres`, `dbadmin`, `useradmin`, `replicator`); chuyển object sở hữu sang `reassign_to` (mặc định `dbadmin`) trên **mọi database** trước khi DROP.
+- `drop-database.sh`: chặn db hệ thống; in dung lượng + số kết nối; **bắt gõ lại đúng tên** mới xoá; dùng `WITH (FORCE)` để ngắt kết nối. **Không hoàn tác được — backup trước!**
 
 ## Quy trình điển hình (ví dụ database `appdb`)
 
