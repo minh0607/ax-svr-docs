@@ -22,7 +22,8 @@ Bộ script tạo role/database/phân quyền. Dùng cho **DevDB** và **Product
 | `setup-group-roles.sh <db>` | Tạo nhóm `<db>_readonly` / `<db>_readwrite` + default privileges |
 | `grant-table.sh <grant\|revoke> <role> <db> <table> <privs>` | Phân quyền theo từng bảng |
 | `reset-password.sh <role>` | Đổi mật khẩu role (nhập 2 lần, ẩn) |
-| `bind-user-ip.sh <user> <ip[,ip2]>` / `<user> --unpin` | **Pin user chỉ từ IP cụ thể** (sửa pg_hba) |
+| `bind-user-ip.sh <user> <ip[,ip2]>` / `<user> --unpin` | **Pin user chỉ từ IP** — **DevDB/standalone** (sửa pg_hba file) |
+| `bind-user-ip-patroni.sh <user> <ip[,ip2]>` / `<user> --unpin` | **Pin user chỉ từ IP** — **Production Patroni** (qua DCS/patronictl) |
 | `drop-user.sh <user> [reassign_to]` | **Xoá user an toàn** — chuyển object sang owner khác rồi drop |
 | `drop-database.sh <db>` | **Xoá database an toàn** — nhắc backup + gõ lại tên + FORCE |
 | `list-access.sh <roles\|dbs\|members <g>\|grants <db>>` | Xem role/db/quyền |
@@ -76,7 +77,20 @@ IP **không** gán ở account — gán ở `pg_hba.conf`. Script này quản l�
 - **Dùng khi:** account IP cố định (service account, server, máy DBA). **Không nên** pin dev laptop IP hay đổi (phải sửa + reload mỗi lần).
 - **3 lớp:** ufw (IP toàn cục) · pg_hba/pin (IP theo user) · GRANT (quyền table).
 
-> ⚠️ **Production (Patroni):** `pg_hba` do Patroni quản lý — KHÔNG sửa file (sẽ bị ghi đè). Thêm rule per-user vào `patroni.yml` mục `bootstrap.dcs.postgresql.pg_hba` hoặc `patronictl edit-config`, rồi `patronictl reload`. `bind-user-ip.sh` chỉ dành cho DevDB/standalone.
+### Pin IP — 2 bản (giống MySQL `user@host`)
+| Môi trường | Script | Cơ chế |
+|---|---|---|
+| DevDB / standalone | `bind-user-ip.sh` | sửa file `pg_hba.conf` + reload |
+| Production Patroni | `bind-user-ip-patroni.sh` | cập nhật DCS qua `patronictl edit-config` + reload cụm |
+
+```bash
+# DevDB:
+./bind-user-ip.sh a 1.1.1.1            # a CHỈ vào được từ 1.1.1.1, IP khác bị reject
+# Production (chạy trên 1 DB node):
+./bind-user-ip-patroni.sh a 1.1.1.1
+```
+> ⚠️ **Không** dùng `bind-user-ip.sh` (sửa file) trên cụm Patroni — Patroni sẽ ghi đè. Dùng bản `-patroni`.
+> Khác MySQL: PG là **1 role 1 mật khẩu**, IP tách ở pg_hba; cần mật khẩu khác theo IP thì tạo role riêng mỗi IP.
 
 ## Lưu ý bảo mật
 
