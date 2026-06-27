@@ -1,0 +1,14 @@
+# Output sinh ra từ autoinstall generator
+**/out/
+*.iso
+*.img
+
+# Backup / dump tạm
+*.dump
+*.sql.gz
+
+# Hệ thống
+.fuse_hidden*
+*.swp
+*~
+.DS_Store
