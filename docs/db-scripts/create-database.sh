@@ -11,7 +11,9 @@ db_exists "$DB" && die "Database '$DB' đã tồn tại."
 role_exists "$OWNER" || die "Owner '$OWNER' chưa tồn tại."
 
 # Tạo DB (CREATE DATABASE không chạy trong transaction nên tách riêng)
-$PSQL -v d="$DB" -v o="$OWNER" -c 'CREATE DATABASE :"d" OWNER :"o" ENCODING UTF8;'
+$PSQL -v d="$DB" -v o="$OWNER" <<'SQL'
+CREATE DATABASE :"d" OWNER :"o" ENCODING UTF8;
+SQL
 
 # Siết quyền: không cho PUBLIC tự kết nối / tạo object trong db này
 $PSQL -d "$DB" -v d="$DB" <<'SQL'

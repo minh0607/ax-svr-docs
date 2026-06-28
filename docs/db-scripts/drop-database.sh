@@ -29,5 +29,7 @@ read -rp "Gõ lại CHÍNH XÁC tên database để xác nhận xoá: " TYPED
 [ "$TYPED" = "$DB" ] || die "Tên không khớp ('$TYPED' != '$DB'). Hủy."
 
 # FORCE: tự ngắt các kết nối đang mở (PostgreSQL 13+)
-$PSQL -v d="$DB" -c 'DROP DATABASE IF EXISTS :"d" WITH (FORCE);'
+$PSQL -v d="$DB" <<'SQL'
+DROP DATABASE IF EXISTS :"d" WITH (FORCE);
+SQL
 echo ">> Đã xoá database: $DB"

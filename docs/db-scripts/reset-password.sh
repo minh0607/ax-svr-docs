@@ -11,5 +11,7 @@ PW2="$(prompt_pw "Nhập lại mật khẩu")"
 [ -n "$PW" ] || die "Mật khẩu rỗng."
 [ "$PW" = "$PW2" ] || die "Hai lần nhập không khớp."
 
-$PSQL -v n="$NAME" -v pw="$PW" -c 'ALTER ROLE :"n" PASSWORD :'\''pw'\'';'
+$PSQL -v n="$NAME" -v pw="$PW" <<'SQL'
+ALTER ROLE :"n" PASSWORD :'pw';
+SQL
 echo ">> Đã đổi mật khẩu cho role: $NAME"

@@ -26,9 +26,15 @@ confirm "Xác nhận xoá '$NAME'?" || { echo "Hủy."; exit 0; }
 DBS="$($PSQL -tAc "SELECT datname FROM pg_database WHERE datistemplate=false AND datallowconn")"
 for db in $DBS; do
   echo "  [db: $db] reassign + drop owned ..."
-  $PSQL -d "$db" -v u="$NAME" -v t="$REASSIGN_TO" -c 'REASSIGN OWNED BY :"u" TO :"t";' || true
-  $PSQL -d "$db" -v u="$NAME" -c 'DROP OWNED BY :"u";' || true
+  $PSQL -d "$db" -v u="$NAME" -v t="$REASSIGN_TO" <<'SQL' || true
+REASSIGN OWNED BY :"u" TO :"t";
+SQL
+  $PSQL -d "$db" -v u="$NAME" <<'SQL' || true
+DROP OWNED BY :"u";
+SQL
 done
 
-$PSQL -v u="$NAME" -c 'DROP ROLE :"u";'
+$PSQL -v u="$NAME" <<'SQL'
+DROP ROLE :"u";
+SQL
 echo ">> Đã xoá role: $NAME (object đã chuyển cho $REASSIGN_TO)"

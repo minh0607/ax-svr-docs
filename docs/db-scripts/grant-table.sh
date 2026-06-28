@@ -18,11 +18,15 @@ db_exists "$DB"     || die "Database '$DB' chưa tồn tại."
 
 case "$ACTION" in
   grant)
-    $PSQL -d "$DB" -v r="$ROLE" -c "GRANT $PRIVS ON $TBL TO :\"r\";"
+    $PSQL -d "$DB" -v r="$ROLE" <<SQL
+GRANT $PRIVS ON $TBL TO :"r";
+SQL
     echo ">> GRANT $PRIVS ON $TBL  ->  $ROLE  (db: $DB)"
     ;;
   revoke)
-    $PSQL -d "$DB" -v r="$ROLE" -c "REVOKE $PRIVS ON $TBL FROM :\"r\";"
+    $PSQL -d "$DB" -v r="$ROLE" <<SQL
+REVOKE $PRIVS ON $TBL FROM :"r";
+SQL
     echo ">> REVOKE $PRIVS ON $TBL  <-  $ROLE  (db: $DB)"
     ;;
   *) die "ACTION phải là 'grant' hoặc 'revoke'.";;

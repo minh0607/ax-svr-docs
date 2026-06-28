@@ -7,6 +7,7 @@
 #   - Mặc định: chạy trên DB server, dùng socket as 'postgres'.
 #   - Từ xa:    export PSQL_ADMIN="psql -h 107.118.210.90 -U dbadmin"
 # Dùng: ./axdb.sh <command> [args]   |   ./axdb.sh help
+# Lưu ý: SQL có biến đưa qua STDIN (heredoc) vì `psql -c` KHÔNG nội suy :var.
 # ============================================================================
 set -euo pipefail
 
@@ -29,7 +30,9 @@ cmd_create_admin() {            # <name>
   [ "$n" = postgres ] && die "Đừng dùng tên 'postgres'."
   role_exists "$n" && die "Role '$n' đã tồn tại."
   local pw; pw="$(prompt_pw "Mật khẩu cho $n")"; [ -n "$pw" ] || die "Mật khẩu rỗng."
-  $PSQL -v n="$n" -v pw="$pw" -c 'CREATE ROLE :"n" LOGIN SUPERUSER CREATEDB CREATEROLE PASSWORD :'\''pw'\'';'
+  $PSQL -v n="$n" -v pw="$pw" <<'SQL'
+CREATE ROLE :"n" LOGIN SUPERUSER CREATEDB CREATEROLE PASSWORD :'pw';
+SQL
   echo ">> Tạo DB ADMIN (SUPERUSER): $n"
 }
 
@@ -37,7 +40,9 @@ cmd_create_user_admin() {       # <name>
   local n="${1:-}"; [ -n "$n" ] || read -rp "Tên user admin: " n
   role_exists "$n" && die "Role '$n' đã tồn tại."
   local pw; pw="$(prompt_pw "Mật khẩu cho $n")"; [ -n "$pw" ] || die "Mật khẩu rỗng."
-  $PSQL -v n="$n" -v pw="$pw" -c 'CREATE ROLE :"n" LOGIN CREATEROLE CREATEDB PASSWORD :'\''pw'\'';'
+  $PSQL -v n="$n" -v pw="$pw" <<'SQL'
+CREATE ROLE :"n" LOGIN CREATEROLE CREATEDB PASSWORD :'pw';
+SQL
   echo ">> Tạo USER ADMIN (CREATEROLE+CREATEDB, không superuser): $n"
 }
 
@@ -45,11 +50,16 @@ cmd_create_user() {             # <user> [group]
   local n="${1:-}" g="${2:-}"; [ -n "$n" ] || read -rp "Tên user: " n
   role_exists "$n" && die "Role '$n' đã tồn tại."
   local pw; pw="$(prompt_pw "Mật khẩu cho $n")"; [ -n "$pw" ] || die "Mật khẩu rỗng."
-  $PSQL -v n="$n" -v pw="$pw" -c 'CREATE ROLE :"n" LOGIN PASSWORD :'\''pw'\'';'
+  $PSQL -v n="$n" -v pw="$pw" <<'SQL'
+CREATE ROLE :"n" LOGIN PASSWORD :'pw';
+SQL
   echo ">> Tạo user: $n"
   if [ -n "$g" ]; then
     role_exists "$g" || die "Group '$g' chưa tồn tại."
-    $PSQL -v n="$n" -v g="$g" -c 'GRANT :"g" TO :"n";'; echo ">> Gán $n vào nhóm $g"
+    $PSQL -v n="$n" -v g="$g" <<'SQL'
+GRANT :"g" TO :"n";
+SQL
+    echo ">> Gán $n vào nhóm $g"
   fi
 }
 
@@ -59,8 +69,13 @@ cmd_create_db() {               # <db> [owner]
   [ -n "$o" ] || read -rp "Owner: " o
   db_exists "$d" && die "Database '$d' đã tồn tại."
   role_exists "$o" || die "Owner '$o' chưa tồn tại."
-  $PSQL -v d="$d" -v o="$o" -c 'CREATE DATABASE :"d" OWNER :"o" ENCODING UTF8;'
-  $PSQL -d "$d" -v d="$d" -c 'REVOKE ALL ON DATABASE :"d" FROM PUBLIC; REVOKE CREATE ON SCHEMA public FROM PUBLIC;'
+  $PSQL -v d="$d" -v o="$o" <<'SQL'
+CREATE DATABASE :"d" OWNER :"o" ENCODING UTF8;
+SQL
+  $PSQL -d "$d" -v d="$d" <<'SQL'
+REVOKE ALL ON DATABASE :"d" FROM PUBLIC;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+SQL
   echo ">> Tạo database: $d (owner $o), đã thu hồi PUBLIC."
 }
 
@@ -68,8 +83,12 @@ cmd_setup_groups() {            # <db>
   local d="${1:-}"; [ -n "$d" ] || read -rp "Database: " d
   db_exists "$d" || die "Database '$d' chưa tồn tại."
   local ro="${d}_readonly" rw="${d}_readwrite"
-  role_exists "$ro" || $PSQL -v g="$ro" -c 'CREATE ROLE :"g" NOLOGIN;'
-  role_exists "$rw" || $PSQL -v g="$rw" -c 'CREATE ROLE :"g" NOLOGIN;'
+  role_exists "$ro" || $PSQL -v g="$ro" <<'SQL'
+CREATE ROLE :"g" NOLOGIN;
+SQL
+  role_exists "$rw" || $PSQL -v g="$rw" <<'SQL'
+CREATE ROLE :"g" NOLOGIN;
+SQL
   $PSQL -d "$d" -v db="$d" -v ro="$ro" -v rw="$rw" <<'SQL'
 GRANT CONNECT ON DATABASE :"db" TO :"ro", :"rw";
 GRANT USAGE ON SCHEMA public TO :"ro", :"rw";
@@ -88,10 +107,17 @@ cmd_grant_revoke() {            # <grant|revoke> <role> <db> <table> <privs>
   [ -n "$role" ] && [ -n "$db" ] && [ -n "$tbl" ] && [ -n "$privs" ] || die "Thiếu tham số."
   role_exists "$role" || die "Role '$role' chưa tồn tại."
   db_exists "$db" || die "Database '$db' chưa tồn tại."
+  # $privs/$tbl: bash expand (heredoc không quote); :"r": psql nội suy
   if [ "$act" = grant ]; then
-    $PSQL -d "$db" -v r="$role" -c "GRANT $privs ON $tbl TO :\"r\";"; echo ">> GRANT $privs ON $tbl -> $role"
+    $PSQL -d "$db" -v r="$role" <<SQL
+GRANT $privs ON $tbl TO :"r";
+SQL
+    echo ">> GRANT $privs ON $tbl -> $role"
   else
-    $PSQL -d "$db" -v r="$role" -c "REVOKE $privs ON $tbl FROM :\"r\";"; echo ">> REVOKE $privs ON $tbl <- $role"
+    $PSQL -d "$db" -v r="$role" <<SQL
+REVOKE $privs ON $tbl FROM :"r";
+SQL
+    echo ">> REVOKE $privs ON $tbl <- $role"
   fi
 }
 
@@ -100,7 +126,9 @@ cmd_passwd() {                  # <role>
   role_exists "$n" || die "Role '$n' không tồn tại."
   local p1 p2; p1="$(prompt_pw "Mật khẩu MỚI cho $n")"; p2="$(prompt_pw "Nhập lại")"
   [ -n "$p1" ] || die "Rỗng."; [ "$p1" = "$p2" ] || die "Không khớp."
-  $PSQL -v n="$n" -v pw="$p1" -c 'ALTER ROLE :"n" PASSWORD :'\''pw'\'';'
+  $PSQL -v n="$n" -v pw="$p1" <<'SQL'
+ALTER ROLE :"n" PASSWORD :'pw';
+SQL
   echo ">> Đổi mật khẩu: $n"
 }
 
@@ -112,10 +140,16 @@ cmd_drop_user() {               # <user> [reassign_to]
   confirm "Xoá '$n' (object chuyển cho $t)?" || { echo "Hủy."; return 0; }
   local dbs; dbs="$($PSQL -tAc "SELECT datname FROM pg_database WHERE datistemplate=false AND datallowconn")"
   for db in $dbs; do
-    $PSQL -d "$db" -v u="$n" -v t="$t" -c 'REASSIGN OWNED BY :"u" TO :"t";' || true
-    $PSQL -d "$db" -v u="$n" -c 'DROP OWNED BY :"u";' || true
+    $PSQL -d "$db" -v u="$n" -v t="$t" <<'SQL' || true
+REASSIGN OWNED BY :"u" TO :"t";
+SQL
+    $PSQL -d "$db" -v u="$n" <<'SQL' || true
+DROP OWNED BY :"u";
+SQL
   done
-  $PSQL -v u="$n" -c 'DROP ROLE :"u";'
+  $PSQL -v u="$n" <<'SQL'
+DROP ROLE :"u";
+SQL
   echo ">> Đã xoá role: $n"
 }
 
@@ -130,7 +164,9 @@ cmd_drop_db() {                 # <db>
   echo "⚠️  XOÁ KHÔNG HOÀN TÁC — đã backup chưa? (Phase 5)"
   local typed; read -rp "Gõ lại CHÍNH XÁC tên db để xác nhận: " typed
   [ "$typed" = "$d" ] || die "Không khớp. Hủy."
-  $PSQL -v d="$d" -c 'DROP DATABASE IF EXISTS :"d" WITH (FORCE);'
+  $PSQL -v d="$d" <<'SQL'
+DROP DATABASE IF EXISTS :"d" WITH (FORCE);
+SQL
   echo ">> Đã xoá database: $d"
 }
 
@@ -215,7 +251,13 @@ cmd_list() {                    # <roles|dbs|members <g>|grants <db>>
     roles) $PSQL -c "\du";;
     dbs)   $PSQL -c "\l";;
     members) [ -n "${2:-}" ] || die "Thiếu group."
-      $PSQL -v g="$2" -tAc "SELECT m.rolname FROM pg_auth_members am JOIN pg_roles g ON g.oid=am.roleid JOIN pg_roles m ON m.oid=am.member WHERE g.rolname=:'g' ORDER BY 1;";;
+      $PSQL -v g="$2" -tA <<'SQL'
+SELECT m.rolname FROM pg_auth_members am
+JOIN pg_roles g ON g.oid=am.roleid
+JOIN pg_roles m ON m.oid=am.member
+WHERE g.rolname=:'g' ORDER BY 1;
+SQL
+      ;;
     grants) [ -n "${2:-}" ] || die "Thiếu db."; db_exists "$2" || die "DB không tồn tại."; $PSQL -d "$2" -c "\dp";;
     *) die "list <roles|dbs|members <g>|grants <db>>";;
   esac

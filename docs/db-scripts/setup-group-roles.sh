@@ -13,7 +13,9 @@ RW="${DB}_readwrite"
 
 # Tạo group role (NOLOGIN) nếu chưa có
 for g in "$RO" "$RW"; do
-  role_exists "$g" || $PSQL -v g="$g" -c 'CREATE ROLE :"g" NOLOGIN;'
+  role_exists "$g" || $PSQL -v g="$g" <<'SQL'
+CREATE ROLE :"g" NOLOGIN;
+SQL
 done
 
 # Cấp quyền trong database

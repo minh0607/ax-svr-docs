@@ -13,11 +13,12 @@ case "$CMD" in
   dbs)   $PSQL -c "\l" ;;
   members)
     G="${2:-}"; [ -n "$G" ] || die "Thiếu tên group."
-    $PSQL -v g="$G" -tAc \
-      "SELECT m.rolname FROM pg_auth_members am
-       JOIN pg_roles g ON g.oid=am.roleid
-       JOIN pg_roles m ON m.oid=am.member
-       WHERE g.rolname=:'g' ORDER BY 1;"
+    $PSQL -v g="$G" -tA <<'SQL'
+SELECT m.rolname FROM pg_auth_members am
+JOIN pg_roles g ON g.oid=am.roleid
+JOIN pg_roles m ON m.oid=am.member
+WHERE g.rolname=:'g' ORDER BY 1;
+SQL
     ;;
   grants)
     DB="${2:-}"; [ -n "$DB" ] || die "Thiếu tên db."

@@ -19,6 +19,8 @@ echo ">> Đã tạo user: $NAME"
 
 if [ -n "$GROUP" ]; then
   role_exists "$GROUP" || die "Group role '$GROUP' chưa tồn tại (tạo bằng setup-group-roles.sh)."
-  $PSQL -v n="$NAME" -v g="$GROUP" -c 'GRANT :"g" TO :"n";'
+  $PSQL -v n="$NAME" -v g="$GROUP" <<'SQL'
+GRANT :"g" TO :"n";
+SQL
   echo ">> Đã gán $NAME vào nhóm $GROUP"
 fi
