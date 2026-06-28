@@ -263,6 +263,20 @@ SQL
   esac
 }
 
+cmd_check() {                   # kiểm tra kết nối + cho biết đang nối bằng ai
+  echo "Chế độ kết nối: $PSQL_ADMIN"
+  local out
+  if out="$($PSQL -tAc "SELECT 'user='||current_user||'  db='||current_database()||'  superuser='||(SELECT rolsuper FROM pg_roles WHERE rolname=current_user)||'  '||version()" 2>&1)"; then
+    echo ">> KẾT NỐI OK ✅"
+    echo "   $out"
+  else
+    echo ">> KẾT NỐI THẤT BẠI ❌"
+    echo "   $out"
+    echo "   Gợi ý: nếu đang test lần đầu, chạy LOCAL: unset PSQL_ADMIN  (dùng sudo -u postgres)"
+    return 1
+  fi
+}
+
 usage() {
 cat <<'H'
 axdb.sh — quản trị PostgreSQL (AX Svr)
@@ -283,6 +297,7 @@ axdb.sh — quản trị PostgreSQL (AX Svr)
   bind-ip <user> <ip[,ip2]|--unpin> [--file|--patroni]
                                               Pin user chỉ từ IP (tự nhận DevDB/Patroni)
   list <roles|dbs|members <g>|grants <db>>    Xem role/db/quyền
+  check                                       Kiểm tra kết nối (đang nối bằng user nào)
   help                                        Trợ giúp này
 
 Kết nối từ xa: export PSQL_ADMIN="psql -h 107.118.210.90 -U dbadmin"
@@ -312,10 +327,11 @@ menu() {
  10) Xoá user (an toàn)
  11) Xoá database (an toàn)
  12) Xem roles / dbs / members / grants
+ 13) Kiểm tra kết nối (test)
   0) Thoát
 ==========================================
 M
-    read -rp "Chọn [0-12]: " ch || exit 0
+    read -rp "Chọn [0-13]: " ch || exit 0
     case "$ch" in
       1) _run cmd_create_admin ;;
       2) _run cmd_create_user_admin ;;
@@ -334,6 +350,7 @@ M
             grants)  read -rp "Database: " d; _run cmd_list grants "$d";;
             *)       _run cmd_list "$s";;
           esac ;;
+      13) _run cmd_check ;;
       0) echo "Bye."; exit 0 ;;
       *) echo "Lựa chọn không hợp lệ." ;;
     esac
@@ -357,6 +374,7 @@ case "$cmd" in
   drop-db)            cmd_drop_db "$@";;
   bind-ip)            cmd_bind_ip "$@";;
   list)               cmd_list "$@";;
+  check)              cmd_check "$@";;
   help|-h|--help)     usage;;
   *) echo "Lệnh không hợp lệ: $cmd"; echo; usage; exit 1;;
 esac
