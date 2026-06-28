@@ -4,7 +4,24 @@ Bộ script tạo role/database/phân quyền. Dùng cho **DevDB** và **Product
 
 ## ⭐ Script TỔNG: `axdb.sh` (1 file, gộp tất cả)
 
-Nếu muốn **1 script duy nhất**, dùng `axdb.sh <command>` (self-contained, không cần file khác):
+Nếu muốn **1 script duy nhất**, dùng `axdb.sh` (self-contained, không cần file khác).
+
+**Cách 1 — MENU tương tác (dễ nhất):** chạy không tham số
+```bash
+./axdb.sh            # mở menu, chọn số 0-12
+```
+```
+============== AX DB MANAGER ==============
+  1) Tạo DB admin       7) REVOKE quyền
+  2) Tạo user admin     8) Đổi mật khẩu
+  3) Tạo user           9) Pin user vào IP
+  4) Tạo database      10) Xoá user
+  5) Tạo group roles   11) Xoá database
+  6) GRANT quyền       12) Xem roles/dbs/...
+  0) Thoát
+```
+
+**Cách 2 — Lệnh trực tiếp** (cho script/tự động hoá):
 ```bash
 ./axdb.sh help                              # xem tất cả lệnh
 ./axdb.sh create-admin dbadmin

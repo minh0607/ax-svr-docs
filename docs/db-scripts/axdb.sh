@@ -267,6 +267,9 @@ usage() {
 cat <<'H'
 axdb.sh — quản trị PostgreSQL (AX Svr)
 
+  (chạy KHÔNG tham số  ->  mở MENU tương tác)
+  menu                                        Mở menu tương tác
+
   create-admin <name>                         Tạo DB admin (SUPERUSER)
   create-user-admin <name>                    Tạo user admin (CREATEROLE+CREATEDB)
   create-user <user> [group]                  Tạo user thường (+gán nhóm)
@@ -286,9 +289,62 @@ Kết nối từ xa: export PSQL_ADMIN="psql -h 107.118.210.90 -U dbadmin"
 H
 }
 
+# ---------- menu tương tác ----------
+_run()   { ( "$@" ) || echo "  (kết thúc với lỗi — xem ở trên)"; }
+_pause() { read -rp "  ↵ Enter để về menu..." _ || true; }
+
+menu() {
+  while true; do
+    cat <<M
+
+============== AX DB MANAGER ==============
+ Kết nối: ${PSQL_ADMIN}
+------------------------------------------
+  1) Tạo DB admin (SUPERUSER)
+  2) Tạo user admin (CREATEROLE+CREATEDB)
+  3) Tạo user thường
+  4) Tạo database
+  5) Tạo group roles (readonly/readwrite)
+  6) GRANT quyền theo bảng
+  7) REVOKE quyền theo bảng
+  8) Đổi mật khẩu role
+  9) Pin user vào IP (bind-ip)
+ 10) Xoá user (an toàn)
+ 11) Xoá database (an toàn)
+ 12) Xem roles / dbs / members / grants
+  0) Thoát
+==========================================
+M
+    read -rp "Chọn [0-12]: " ch || exit 0
+    case "$ch" in
+      1) _run cmd_create_admin ;;
+      2) _run cmd_create_user_admin ;;
+      3) read -rp "Tên user: " u; read -rp "Group (trống nếu không): " g; _run cmd_create_user "$u" "$g" ;;
+      4) _run cmd_create_db ;;
+      5) _run cmd_setup_groups ;;
+      6) read -rp "Role: " r; read -rp "Database: " d; read -rp "Bảng (hoặc ALL TABLES IN SCHEMA public): " t; read -rp "Quyền (vd SELECT,INSERT): " p; _run cmd_grant_revoke grant "$r" "$d" "$t" "$p" ;;
+      7) read -rp "Role: " r; read -rp "Database: " d; read -rp "Bảng: " t; read -rp "Quyền: " p; _run cmd_grant_revoke revoke "$r" "$d" "$t" "$p" ;;
+      8) _run cmd_passwd ;;
+      9) read -rp "User: " u; read -rp "IP (1.1.1.1,1.1.1.2) hoặc --unpin: " a; read -rp "Mode [Enter=auto / --file / --patroni]: " m; _run cmd_bind_ip "$u" "$a" "${m:-auto}" ;;
+      10) _run cmd_drop_user ;;
+      11) _run cmd_drop_db ;;
+      12) read -rp "Xem [roles/dbs/members/grants]: " s
+          case "$s" in
+            members) read -rp "Group: " g; _run cmd_list members "$g";;
+            grants)  read -rp "Database: " d; _run cmd_list grants "$d";;
+            *)       _run cmd_list "$s";;
+          esac ;;
+      0) echo "Bye."; exit 0 ;;
+      *) echo "Lựa chọn không hợp lệ." ;;
+    esac
+    _pause
+  done
+}
+
 # ---------- dispatch ----------
-cmd="${1:-help}"; shift || true
+cmd="${1:-menu}"; shift || true
 case "$cmd" in
+  menu)               menu;;
   create-admin)       cmd_create_admin "$@";;
   create-user-admin)  cmd_create_user_admin "$@";;
   create-user)        cmd_create_user "$@";;
