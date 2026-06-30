@@ -90,33 +90,58 @@ sudo ufw allow from 10.1.1.0/24 to any port 139 proto tcp
 
 ---
 
-## 2.3 — Web (Windows) kết nối & deploy (Mô hình A)
+## 2.3 — Deploy: NAS → local 2 web (thủ công theo RELEASE — chưa có CI/CD)
 
-**Kiểm tra truy cập share từ Web (PowerShell):**
+> Chưa có CI/CD → deploy **theo từng đợt release**, **KHÔNG cron định kỳ**.
+> Mỗi release đẩy **CẢ 2 web** từ **cùng 1 bản** trên NAS → 2 web luôn giống nhau.
+> IIS vẫn chạy từ **đĩa local** (`D:\app`); NAS chỉ cần sống lúc deploy.
+
+### Quy trình mỗi lần ra bản mới
+```
+1. Web engineer build React  →  ra thư mục build
+2. Upload build lên NAS theo PHIÊN BẢN, vd:  /srv/web-source/2025-07-01
+   rồi trỏ "current" sang bản mới  (để rollback dễ)
+3. Trên Web1 VÀ Web2: chạy deploy.ps1  → kéo "current" về D:\app
+4. Kiểm tra: health 2 web + truy cập qua VIP
+```
+
+NAS đổi "current" sang bản mới (rollback = trỏ lại bản cũ rồi deploy lại):
+```bash
+ln -sfn /srv/web-source/2025-07-01 /srv/web-source/current
+```
+
+### Lưu credential NAS 1 lần trên mỗi web (khỏi nhập lại)
 ```powershell
-# mở share bằng credential webdeploy
-net use \\10.1.1.97\web-source /user:webdeploy *
-dir \\10.1.1.97\web-source
+cmdkey /add:10.1.1.97 /user:webdeploy /pass
 ```
 
-**Script deploy: đồng bộ NAS → local D:\app** (chạy trên mỗi web, hoặc do web engineer/CI gọi):
+### deploy.ps1 — chạy trên TỪNG web (Web1, Web2) lúc release
 ```powershell
-# deploy.ps1  — copy bản mới nhất từ NAS về local, IIS chạy từ local
-$src  = "\\10.1.1.97\web-source\current"
-$dst  = "D:\app"
-robocopy $src $dst /MIR /R:2 /W:2 /NFL /NDL
-iisreset /noforce        # hoặc recycle app pool nếu cần
+param(
+  [string]$Src  = "\\10.1.1.97\web-source\current",
+  [string]$Dst  = "D:\app",
+  [string]$Pool = "AXPool"
+)
+Import-Module WebAdministration
+robocopy $Src $Dst /MIR /R:2 /W:2 /NFL /NDL /NP
+if ($LASTEXITCODE -ge 8) { Write-Error "robocopy lỗi ($LASTEXITCODE)"; exit 1 }
+Restart-WebAppPool -Name $Pool          # nạp bản mới (nhẹ hơn iisreset)
+Write-Host "Deploy xong trên $env:COMPUTERNAME"
 ```
-> `/MIR` mirror chính xác (xóa file thừa ở đích). Cẩn thận thư mục đích đúng.
+> **Vì sao vẫn dùng robocopy?** Ở đây nó chạy **lúc release (thủ công)**, KHÔNG phải cron → không bị lệch/trễ. `/MIR` đảm bảo local khớp đúng NAS. robocopy exit code 0–7 = OK, ≥8 = lỗi.
 
-**IIS site:** physical path = `D:\app` (local), KHÔNG phải UNC.
+### (Tùy chọn) đẩy CẢ 2 web bằng 1 lệnh — từ máy admin
+```powershell
+# máy admin đọc NAS, ghi thẳng vào D:\app của 2 web (qua admin share d$)
+"\\10.1.1.101\d$\app","\\10.1.1.102\d$\app" | ForEach-Object {
+  robocopy "\\10.1.1.97\web-source\current" $_ /MIR /R:2 /W:2 /NP
+}
+# rồi recycle pool từng web (qua RDP hoặc PowerShell Remoting)
+```
+> Cần mở SMB(445) từ máy admin tới 2 web + quyền admin. Tiện hơn nhưng thêm thiết lập — nếu ngại thì cứ chạy `deploy.ps1` trên từng web.
 
-**Quy trình cập nhật web:**
-```
-web engineer build React  →  đẩy vào NAS /srv/web-source/current
-                          →  chạy deploy.ps1 trên Web1 và Web2
-                          →  IIS phục vụ bản mới từ local
-```
+**IIS site:** physical path = `D:\app` (local), **KHÔNG** phải UNC.
+**⚠️ KHÔNG** đặt cron robocopy định kỳ — chỉ chạy khi RELEASE.
 
 ---
 
@@ -146,8 +171,9 @@ Source gốc cũng cần backup (NAS hỏng là mất source chưa commit):
 - [ ] `/srv/web-source` + user `webdeploy` (tách khỏi `pgbackrest`)
 - [ ] Samba chỉ nghe LAN, `hosts allow` đúng 2 web
 - [ ] Firewall mở 445/139 chỉ cho LAN
-- [ ] Web map được share, `deploy.ps1` chạy OK
+- [ ] Web map được share (cmdkey lưu cred), `deploy.ps1` chạy OK
 - [ ] IIS physical path = **D:\app (local)**, không UNC
-- [ ] Quy trình deploy đồng bộ cả 2 web
+- [ ] Deploy **theo release** (đẩy cả 2 web cùng bản), **KHÔNG cron định kỳ**
+- [ ] Có đánh **phiên bản** trên NAS + "current" để rollback
 - [ ] Đã thống nhất xử lý session/upload với web engineer
 - [ ] Backup source gốc
