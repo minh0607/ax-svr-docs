@@ -9,8 +9,8 @@
 
 | Server | OS | WAN 107.118.210.x | LAN 10.1.1.x | Phần mềm chính |
 |---|---|---|---|---|
-| Proxy 1 | Ubuntu 24.04 | .98 | .98 | nginx, keepalived |
-| Proxy 2 | Ubuntu 24.04 | .99 | .99 | nginx, keepalived |
+| AX-Proxy01 | Ubuntu 24.04 | .98 | .98 | nginx, keepalived |
+| AX-Proxy02 | Ubuntu 24.04 | .99 | .99 | nginx, keepalived |
 | Web 1 | Win Server 2025 | .101 | .101 | IIS (+ .NET hosting bundle) |
 | Web 2 | Win Server 2025 | .102 | .102 | IIS (+ .NET hosting bundle) |
 | NAS | Ubuntu 24.04 | .97 (mgmt) | .97 (data) | samba (CHỈ phục vụ web) |
@@ -89,10 +89,10 @@ ping -c2 8.8.8.8              # thông internet qua WAN
 
 **Hostname + hosts** (đặt tên dễ nhận biết):
 ```bash
-sudo hostnamectl set-hostname pg-db1     # vd; proxy1, nas, ...
+sudo hostnamectl set-hostname pg-db1     # vd; AX-Proxy01, nas, ...
 sudo tee -a /etc/hosts >/dev/null <<'EOF'
-107.118.210.98  proxy1
-107.118.210.99  proxy2
+107.118.210.98  AX-Proxy01
+107.118.210.99  AX-Proxy02
 10.1.1.97     nas
 10.1.1.103    pg-db1
 10.1.1.104    pg-db2
@@ -137,7 +137,7 @@ sudo ufw enable
 
 > Cấu hình chi tiết ở các Phase tương ứng — đây là nơi cài gói.
 
-**Proxy 1 & 2:**
+**AX-Proxy01 & AX-Proxy02:**
 ```bash
 sudo apt install -y nginx keepalived        # cấu hình: Phase 4
 ```

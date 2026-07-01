@@ -52,7 +52,7 @@ Kết quả trong `out/`:
 out/pg-db1-seed.iso
 out/pg-db2-seed.iso
 out/pg-db3-seed.iso     (có cả /data + /backup)
-out/proxy1-seed.iso ...
+out/AX-Proxy01-seed.iso ...
 ```
 
 ## Bước 4 — Gắn ISO & boot từng VM
@@ -64,7 +64,7 @@ Mỗi VM gắn **2 ổ CD/ISO**:
 Cấu hình đĩa ảo của VM:
 | Vai trò | Đĩa cần gắn |
 |---|---|
-| proxy1/2 | sda (OS) |
+| AX-Proxy01/02 | sda (OS) |
 | nas, db1, db2, mon, devdb | sda (OS) + **sdb** (→ `/data`) |
 | **db3** | sda (OS) + **sdb** (`/data`) + **sdc** (`/backup`) |
 

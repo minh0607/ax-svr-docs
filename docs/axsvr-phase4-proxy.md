@@ -1,10 +1,11 @@
 # AX Svr — Phase 4: Proxy HA (Nginx + Keepalived/VIP)
 
 > 2 Nginx active-passive, dùng chung **Proxy-VIP 107.118.210.100** (WAN, user truy cập).
-> Nginx terminate HTTPS, load balance về 2 IIS web qua LAN.
+> **Giai đoạn hiện tại:** Nginx chỉ nghe **port 80 (HTTP)**, load balance về 2 IIS web qua LAN.
+> **Giai đoạn sau:** bật HTTPS (terminate TLS tại Nginx) — xem mục 4.1b.
 
 ```
-User --WAN--> 107.118.210.100 (VIP) --> Nginx Proxy1 .98 / Proxy2 .99
+User --WAN--> 107.118.210.100 (VIP) --> Nginx AX-Proxy01 .98 / AX-Proxy02 .99
                                           | LAN
                                           v
                           IIS Web1 10.1.1.101:80 / Web2 10.1.1.102:80
@@ -12,8 +13,8 @@ User --WAN--> 107.118.210.100 (VIP) --> Nginx Proxy1 .98 / Proxy2 .99
 
 | | WAN 107.118.210.x | LAN 10.1.1.x |
 |---|---|---|
-| Proxy 1 | .98 (MASTER) | .98 |
-| Proxy 2 | .99 (BACKUP) | .99 |
+| AX-Proxy01 | .98 (MASTER) | .98 |
+| AX-Proxy02 | .99 (BACKUP) | .99 |
 | Proxy-VIP | **.100** | — |
 | Web 1 (IIS) | .101 | .101 (nhận traffic) |
 | Web 2 (IIS) | .102 | .102 (nhận traffic) |
@@ -33,7 +34,9 @@ Ghi nhớ tên interface WAN (ví dụ `ens3`) — thay vào `<WAN_IF>` bên dư
 
 ---
 
-## 4.1 — Nginx reverse proxy + load balancing (CẢ 2 proxy, file giống nhau)
+## 4.1 — Nginx reverse proxy + load balancing (HTTP, CẢ 2 proxy, file giống nhau)
+
+> Giai đoạn hiện tại: **chỉ HTTP port 80**, chưa SSL.
 
 `/etc/nginx/conf.d/ax-web.conf`:
 ```nginx
@@ -44,6 +47,41 @@ upstream ax_web_backend {
     keepalive 32;
 }
 
+server {
+    listen 80 default_server;
+    server_name _;                       # hoặc ax.example.com
+
+    client_max_body_size 50m;
+
+    location / {
+        proxy_pass http://ax_web_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection        "";
+        proxy_connect_timeout 5s;
+        proxy_next_upstream error timeout http_502 http_503 http_504;
+    }
+}
+```
+
+```bash
+sudo nginx -t && sudo systemctl enable --now nginx
+```
+
+> Lưu ý: Nginx `listen 80` (mọi interface) — node nào giữ VIP thì nhận traffic. Không bind cứng vào IP VIP để node backup không lỗi khởi động.
+
+⚠️ **Cảnh báo:** dải `107.118.210.x` là WAN → traffic HTTP đi **cleartext** (kể cả login/session), dễ bị nghe lén/MITM. Chỉ dùng cho giai đoạn test; production nên bật HTTPS (mục 4.1b).
+
+---
+
+## 4.1b — Bật HTTPS (GIAI ĐOẠN SAU, chưa áp dụng)
+
+> Khi cần bật TLS: thay block `server` ở 4.1 bằng 2 block dưới (redirect 80→443 + terminate 443).
+
+```nginx
 # HTTP -> HTTPS
 server {
     listen 80 default_server;
@@ -94,12 +132,6 @@ sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 ```
 > 2 proxy phải dùng **cùng một cert** (copy giống nhau).
 
-```bash
-sudo nginx -t && sudo systemctl enable --now nginx
-```
-
-> Lưu ý: Nginx `listen 443` (mọi interface) — node nào giữ VIP thì nhận traffic. Không bind cứng vào IP VIP để node backup không lỗi khởi động.
-
 ---
 
 ## 4.2 — Keepalived (VRRP) -> Proxy-VIP 107.118.210.100
@@ -113,7 +145,7 @@ systemctl is-active --quiet nginx
 sudo chmod +x /etc/keepalived/check_nginx.sh
 ```
 
-**Proxy 1 (MASTER)** `/etc/keepalived/keepalived.conf`:
+**AX-Proxy01 (MASTER)** `/etc/keepalived/keepalived.conf`:
 ```conf
 vrrp_script chk_nginx {
     script "/etc/keepalived/check_nginx.sh"
@@ -142,12 +174,12 @@ vrrp_instance AX_PROXY {
 }
 ```
 
-**Proxy 2 (BACKUP)** — chỉ khác `state` và `priority`:
+**AX-Proxy02 (BACKUP)** — chỉ khác `state` và `priority`:
 ```conf
 vrrp_instance AX_PROXY {
     state BACKUP
     interface <WAN_IF>
-    virtual_router_id 51       # phải GIỐNG proxy1
+    virtual_router_id 51       # phải GIỐNG AX-Proxy01
     priority 100               # thấp hơn
     advert_int 1
     authentication {
@@ -162,7 +194,7 @@ vrrp_instance AX_PROXY {
     }
 }
 ```
-(phần `vrrp_script chk_nginx { ... }` copy y hệt proxy1)
+(phần `vrrp_script chk_nginx { ... }` copy y hệt AX-Proxy01)
 
 ```bash
 sudo systemctl enable --now keepalived
@@ -173,11 +205,11 @@ sudo systemctl enable --now keepalived
 ## 4.3 — Kiểm tra
 
 ```bash
-# Trên Proxy1 phải thấy VIP:
-ip a | grep 107.118.210.100        # xuất hiện trên proxy1 (MASTER)
+# Trên AX-Proxy01 phải thấy VIP:
+ip a | grep 107.118.210.100        # xuất hiện trên AX-Proxy01 (MASTER)
 
 # Từ máy client (WAN):
-curl -kI https://107.118.210.100   # ra HTTP 200/301 từ web
+curl -I http://107.118.210.100     # ra HTTP 200 từ web
 ```
 
 ---
@@ -186,11 +218,11 @@ curl -kI https://107.118.210.100   # ra HTTP 200/301 từ web
 
 **1) Proxy chết -> VIP nhảy sang proxy còn lại:**
 ```bash
-sudo systemctl stop keepalived      # trên Proxy1
-# VIP 107.118.210.100 phải xuất hiện trên Proxy2 trong ~1-3s
-ip a | grep 107.118.210.100           # kiểm tra trên Proxy2
-curl -kI https://107.118.210.100      # vẫn truy cập được
-sudo systemctl start keepalived     # bật lại Proxy1 -> giành lại VIP (priority cao)
+sudo systemctl stop keepalived      # trên AX-Proxy01
+# VIP 107.118.210.100 phải xuất hiện trên AX-Proxy02 trong ~1-3s
+ip a | grep 107.118.210.100           # kiểm tra trên AX-Proxy02
+curl -I http://107.118.210.100        # vẫn truy cập được
+sudo systemctl start keepalived     # bật lại AX-Proxy01 -> giành lại VIP (priority cao)
 ```
 
 **2) Nginx chết (không phải cả VM) -> nhờ chk_nginx, VIP cũng nhường:**
@@ -210,6 +242,6 @@ sudo systemctl start nginx
 ## Ghi chú quan trọng
 
 1. **DNS:** tên miền trỏ vào **Proxy-VIP 107.118.210.100** (không trỏ IP proxy thật).
-2. **Firewall proxy:** mở 80/443 từ WAN; chỉ proxy được phép gọi web qua LAN.
+2. **Firewall proxy:** giai đoạn này chỉ mở **80** từ WAN (thêm 443 khi bật HTTPS ở 4.1b); chỉ proxy được phép gọi web qua LAN.
 3. **Web (IIS):** chỉ mở port 80 cho 2 proxy (10.1.1.98/.99) qua LAN; KHÔNG expose ra WAN.
 4. `virtual_router_id` (51) phải **duy nhất** trong mạng (tránh trùng nếu có cụm VRRP khác).

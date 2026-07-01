@@ -63,7 +63,8 @@ allow_mon() { ufw allow from "$MON_IP" to any port "$1" proto tcp comment "mon s
 case "$ROLE" in
   proxy)
     ufw allow from "$WAN_USER_SUBNET" to any port 80  proto tcp comment "user http"
-    ufw allow from "$WAN_USER_SUBNET" to any port 443 proto tcp comment "user https"
+    # Giai đoạn HTTP-only chưa cần 443; bỏ comment khi bật HTTPS (phase4 mục 4.1b):
+    # ufw allow from "$WAN_USER_SUBNET" to any port 443 proto tcp comment "user https"
     allow_mon 9100      # node_exporter
     allow_mon 9113      # nginx_exporter
     ;;

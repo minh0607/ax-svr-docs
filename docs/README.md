@@ -56,7 +56,7 @@ sudo ./firewall/apply-firewall.sh devdb  107.118.210.50
                        ┌─────────────┴─────────────┐
                        ▼                           ▼
               ┌─────────────────┐         ┌─────────────────┐
-              │ Proxy 1  (.98)  │ MASTER  │ Proxy 2  (.99)  │ BACKUP
+              │ AX-Proxy01(.98) │ MASTER  │ AX-Proxy02(.99) │ BACKUP
               │ Nginx+Keepalived│◄═══════►│ Nginx+Keepalived│
               └────────┬────────┘  VRRP   └────────┬────────┘
                        │                           │
@@ -128,8 +128,8 @@ sudo ./firewall/apply-firewall.sh devdb  107.118.210.50
 | Thành phần | WAN 107.118.210.x | LAN 10.1.1.x | OS / phần mềm |
 |---|---|---|---|
 | Proxy-VIP | **.100** | — | (Keepalived) |
-| Proxy 1 | .98 | .98 | Ubuntu / nginx, keepalived |
-| Proxy 2 | .99 | .99 | Ubuntu / nginx, keepalived |
+| AX-Proxy01 | .98 | .98 | Ubuntu / nginx, keepalived |
+| AX-Proxy02 | .99 | .99 | Ubuntu / nginx, keepalived |
 | Web 1 | .101 | .101 | Win2025 / IIS |
 | Web 2 | .102 | .102 | Win2025 / IIS |
 | NAS | .97 (mgmt) | .97 (data) | Ubuntu / samba (CHỈ source web) |
@@ -184,7 +184,7 @@ sudo ./firewall/apply-firewall.sh devdb  107.118.210.50
 
 ### Proxy (Phase 4)
 - [ ] `https://107.118.210.100` ra web
-- [ ] **TEST: tắt Proxy1 → VIP nhảy Proxy2 < 3s, vẫn truy cập**
+- [ ] **TEST: tắt AX-Proxy01 → VIP nhảy AX-Proxy02 < 3s, vẫn truy cập**
 - [ ] **TEST: tắt Web1 → Nginx loại khỏi pool, web vẫn chạy**
 - [ ] Cert hợp lệ (không self-signed cho production); HTTP→HTTPS redirect
 
