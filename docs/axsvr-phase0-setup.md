@@ -94,6 +94,8 @@ sudo tee -a /etc/hosts >/dev/null <<'EOF'
 107.118.210.98  ax-proxy01
 107.118.210.99  ax-proxy02
 10.1.1.97     nas
+10.1.1.101    ax-web01
+10.1.1.102    ax-web02
 10.1.1.103    ax-db01
 10.1.1.104    ax-db02
 10.1.1.105    ax-db03
@@ -182,8 +184,13 @@ sudo apt install -y postgresql-17 postgresql-client-17 postgresql-contrib
 > App/React do web engineer deploy. Phần anh: dựng OS + IIS + mạng.
 
 1. **Cài Windows Server 2025** (Desktop Experience).
-2. **Mạng 2 NIC** (PowerShell, đổi tên NIC cho đúng):
+2. **Đặt hostname** theo từng máy:
    ```powershell
+   Rename-Computer -NewName ax-web01 -Restart     # máy web thứ 2 dùng: ax-web02
+   ```
+3. **Mạng 2 NIC** (PowerShell, đổi tên NIC cho đúng). IP theo từng web — **ax-web01 = .101**, **ax-web02 = .102** (thay ở cả 2 dòng WAN + LAN):
+   ```powershell
+   # Ví dụ ax-web01. ax-web02: đổi 107.118.210.101 -> .102 và 10.1.1.101 -> .102
    # WAN
    New-NetIPAddress -InterfaceAlias "Ethernet0" -IPAddress 107.118.210.101 `
      -PrefixLength 24 -DefaultGateway 107.118.210.1
@@ -191,17 +198,17 @@ sudo apt install -y postgresql-17 postgresql-client-17 postgresql-contrib
    # LAN (KHÔNG gateway)
    New-NetIPAddress -InterfaceAlias "Ethernet1" -IPAddress 10.1.1.101 -PrefixLength 24
    ```
-3. **Cài IIS + .NET hosting bundle:**
+4. **Cài IIS + .NET hosting bundle:**
    ```powershell
    Install-WindowsFeature -Name Web-Server -IncludeManagementTools
    # Sau đó cài .NET Hosting Bundle nếu backend là ASP.NET Core
    ```
-4. **Firewall:** chỉ cho 2 Proxy (10.1.1.98/.99) gọi port 80 qua LAN; KHÔNG mở 80/443 ra WAN.
+5. **Firewall:** chỉ cho 2 Proxy (10.1.1.98/.99) gọi port 80 qua LAN; KHÔNG mở 80/443 ra WAN.
    ```powershell
    New-NetFirewallRule -DisplayName "AX HTTP from Proxy" -Direction Inbound `
      -Protocol TCP -LocalPort 80 -RemoteAddress 10.1.1.98,10.1.1.99 -Action Allow
    ```
-5. Tạo thư mục deploy local `D:\app` (web engineer deploy React vào đây — xem Phase 2).
+6. Tạo thư mục deploy local `D:\app` (web engineer deploy React vào đây — xem Phase 2).
 
 ---
 

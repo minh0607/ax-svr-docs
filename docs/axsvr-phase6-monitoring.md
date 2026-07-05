@@ -70,9 +70,18 @@ sudo ufw allow from 10.1.1.96 to any port 2379 proto tcp   # đã mở ở Phase
 **Nginx (2 proxy):**
 ```bash
 # bật stub_status
+# --- ax-proxy01 ---
 sudo tee /etc/nginx/conf.d/status.conf >/dev/null <<'EOF'
 server {
-  listen 10.1.1.98:8080;          # đổi .99 cho ax-proxy02
+  listen 10.1.1.98:8080;
+  location /stub_status { stub_status; allow 10.1.1.96; deny all; }
+}
+EOF
+
+# --- ax-proxy02 ---
+sudo tee /etc/nginx/conf.d/status.conf >/dev/null <<'EOF'
+server {
+  listen 10.1.1.99:8080;
   location /stub_status { stub_status; allow 10.1.1.96; deny all; }
 }
 EOF

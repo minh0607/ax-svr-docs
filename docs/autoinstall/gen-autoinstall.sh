@@ -42,6 +42,8 @@ read -r -d '' HOSTS_BLOCK <<'EOF' || true
 107.118.210.98   ax-proxy01
 107.118.210.99   ax-proxy02
 10.1.1.97      nas
+10.1.1.101     ax-web01
+10.1.1.102     ax-web02
 10.1.1.103     ax-db01
 10.1.1.104     ax-db02
 10.1.1.105     ax-db03

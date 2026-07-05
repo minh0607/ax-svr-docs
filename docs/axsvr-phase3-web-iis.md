@@ -36,12 +36,18 @@ Set-ItemProperty IIS:\AppPools\AXPool -Name managedRuntimeVersion -Value ""
 Set-ItemProperty IIS:\AppPools\AXPool -Name autoStart -Value $true
 Set-ItemProperty IIS:\AppPools\AXPool -Name startMode -Value "AlwaysRunning"   # giảm cold start
 
-# Site: BIND CHỈ trên LAN IP (ax-web01=.101, ax-web02=.102), KHÔNG bind WAN
+# Site: BIND CHỈ trên LAN IP, KHÔNG bind WAN. Chạy block tương ứng trên từng web:
+
+# --- ax-web01 (10.1.1.101) ---
 New-Website -Name "AXWeb" -PhysicalPath "D:\app" -ApplicationPool "AXPool" `
   -IPAddress "10.1.1.101" -Port 80
+
+# --- ax-web02 (10.1.1.102) ---
+New-Website -Name "AXWeb" -PhysicalPath "D:\app" -ApplicationPool "AXPool" `
+  -IPAddress "10.1.1.102" -Port 80
 ```
 
-> ax-web02 đổi `10.1.1.101` → `10.1.1.102`. **Tuyệt đối không** thêm binding trên 107.118.210.x (WAN).
+> **Tuyệt đối không** thêm binding trên 107.118.210.x (WAN).
 
 ---
 

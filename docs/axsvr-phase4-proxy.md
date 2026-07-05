@@ -174,17 +174,25 @@ vrrp_instance AX_PROXY {
 }
 ```
 
-**ax-proxy02 (BACKUP)** — chỉ khác `state` và `priority`:
+**ax-proxy02 (BACKUP)** `/etc/keepalived/keepalived.conf` — khác ax-proxy01 ở `state` (BACKUP) và `priority` (100):
 ```conf
+vrrp_script chk_nginx {
+    script "/etc/keepalived/check_nginx.sh"
+    interval 2
+    weight -40            # nginx chết -> giảm priority -> nhường VIP
+    fall 2
+    rise 2
+}
+
 vrrp_instance AX_PROXY {
     state BACKUP
-    interface <WAN_IF>
+    interface <WAN_IF>        # NIC dải 107.118.210.x
     virtual_router_id 51       # phải GIỐNG ax-proxy01
-    priority 100               # thấp hơn
+    priority 100               # thấp hơn ax-proxy01
     advert_int 1
     authentication {
         auth_type PASS
-        auth_pass <CHUOI_BIMAT>
+        auth_pass <CHUOI_BIMAT>   # giống ax-proxy01
     }
     virtual_ipaddress {
         107.118.210.100/24
@@ -194,7 +202,6 @@ vrrp_instance AX_PROXY {
     }
 }
 ```
-(phần `vrrp_script chk_nginx { ... }` copy y hệt ax-proxy01)
 
 ```bash
 sudo systemctl enable --now keepalived
