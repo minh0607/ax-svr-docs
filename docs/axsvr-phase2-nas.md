@@ -20,8 +20,8 @@ Có 2 mô hình. Em khuyến nghị **Mô hình A**.
 ### Mô hình A — Deploy-to-local (KHUYẾN NGHỊ) ⭐
 NAS chỉ giữ **source gốc**; mỗi web **đồng bộ về đĩa local** (`D:\app`) và IIS chạy từ local.
 ```
-NAS /srv/web-source  ──(robocopy/sync)──►  Web1 D:\app   (IIS chạy local)
-                     ──(robocopy/sync)──►  Web2 D:\app   (IIS chạy local)
+NAS /srv/web-source  ──(robocopy/sync)──►  ax-web01 D:\app   (IIS chạy local)
+                     ──(robocopy/sync)──►  ax-web02 D:\app   (IIS chạy local)
 ```
 - ✅ NAS chết → web **vẫn chạy** (đang chạy bản local).
 - ✅ Nhanh (đọc đĩa local, không qua SMB mỗi request).
@@ -101,7 +101,7 @@ sudo ufw allow from 10.1.1.0/24 to any port 139 proto tcp
 1. Web engineer build React  →  ra thư mục build
 2. Upload build lên NAS theo PHIÊN BẢN, vd:  /srv/web-source/2025-07-01
    rồi trỏ "current" sang bản mới  (để rollback dễ)
-3. Trên Web1 VÀ Web2: chạy deploy.ps1  → kéo "current" về D:\app
+3. Trên ax-web01 VÀ ax-web02: chạy deploy.ps1  → kéo "current" về D:\app
 4. Kiểm tra: health 2 web + truy cập qua VIP
 ```
 
@@ -115,7 +115,7 @@ ln -sfn /srv/web-source/2025-07-01 /srv/web-source/current
 cmdkey /add:10.1.1.97 /user:webdeploy /pass
 ```
 
-### deploy.ps1 — chạy trên TỪNG web (Web1, Web2) lúc release
+### deploy.ps1 — chạy trên TỪNG web (ax-web01, ax-web02) lúc release
 ```powershell
 param(
   [string]$Src  = "\\10.1.1.97\web-source\current",
@@ -149,7 +149,7 @@ Write-Host "Deploy xong trên $env:COMPUTERNAME"
 
 Vì Nginx (Phase 4) phân tải round-robin/least_conn về 2 web, **2 web phải đồng nhất**:
 
-1. **Source giống nhau:** luôn deploy cả Web1 **và** Web2 từ cùng bản trên NAS (đừng deploy lệch).
+1. **Source giống nhau:** luôn deploy cả ax-web01 **và** ax-web02 từ cùng bản trên NAS (đừng deploy lệch).
 2. **Session/state:** nếu app có session, hoặc dùng **sticky session** (Nginx `ip_hash`/cookie), hoặc **shared session store** (Redis/DB). → bàn với web engineer. React tĩnh thì thường stateless, nhưng backend API cần lưu ý.
 3. **Upload/file người dùng:** nếu app cho upload, **không lưu vào local từng web** (lệch nhau) → lưu chung trên NAS share riêng hoặc object storage.
 

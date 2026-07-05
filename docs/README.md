@@ -56,7 +56,7 @@ sudo ./firewall/apply-firewall.sh devdb  107.118.210.50
                        ┌─────────────┴─────────────┐
                        ▼                           ▼
               ┌─────────────────┐         ┌─────────────────┐
-              │ AX-Proxy01(.98) │ MASTER  │ AX-Proxy02(.99) │ BACKUP
+              │ ax-proxy01(.98) │ MASTER  │ ax-proxy02(.99) │ BACKUP
               │ Nginx+Keepalived│◄═══════►│ Nginx+Keepalived│
               └────────┬────────┘  VRRP   └────────┬────────┘
                        │                           │
@@ -65,7 +65,7 @@ sudo ./firewall/apply-firewall.sh devdb  107.118.210.50
               ┌────────┴───────────┬───────────────┘
               ▼                    ▼
      ┌─────────────────┐  ┌─────────────────┐
-     │  Web 1 (.101)   │  │  Web 2 (.102)   │   Windows 2025 + IIS
+     │ ax-web01 (.101) │  │ ax-web02 (.102) │   Windows 2025 + IIS
      │  IIS  D:\app    │  │  IIS  D:\app    │   (React chạy LOCAL)
      └───┬────────┬────┘  └────┬───────┬────┘
          │        │            │       │
@@ -128,10 +128,10 @@ sudo ./firewall/apply-firewall.sh devdb  107.118.210.50
 | Thành phần | WAN 107.118.210.x | LAN 10.1.1.x | OS / phần mềm |
 |---|---|---|---|
 | Proxy-VIP | **.100** | — | (Keepalived) |
-| AX-Proxy01 | .98 | .98 | Ubuntu / nginx, keepalived |
-| AX-Proxy02 | .99 | .99 | Ubuntu / nginx, keepalived |
-| Web 1 | .101 | .101 | Win2025 / IIS |
-| Web 2 | .102 | .102 | Win2025 / IIS |
+| ax-proxy01 | .98 | .98 | Ubuntu / nginx, keepalived |
+| ax-proxy02 | .99 | .99 | Ubuntu / nginx, keepalived |
+| ax-web01 | .101 | .101 | Win2025 / IIS |
+| ax-web02 | .102 | .102 | Win2025 / IIS |
 | NAS | .97 (mgmt) | .97 (data) | Ubuntu / samba (CHỈ source web) |
 | DB 1 | .103 | .103 | Ubuntu / postgresql-17, patroni, etcd, pgbackrest |
 | DB 2 | .104 | .104 | nt |
@@ -184,8 +184,8 @@ sudo ./firewall/apply-firewall.sh devdb  107.118.210.50
 
 ### Proxy (Phase 4)
 - [ ] `https://107.118.210.100` ra web
-- [ ] **TEST: tắt AX-Proxy01 → VIP nhảy AX-Proxy02 < 3s, vẫn truy cập**
-- [ ] **TEST: tắt Web1 → Nginx loại khỏi pool, web vẫn chạy**
+- [ ] **TEST: tắt ax-proxy01 → VIP nhảy ax-proxy02 < 3s, vẫn truy cập**
+- [ ] **TEST: tắt ax-web01 → Nginx loại khỏi pool, web vẫn chạy**
 - [ ] Cert hợp lệ (không self-signed cho production); HTTP→HTTPS redirect
 
 ### Backup (Phase 5)

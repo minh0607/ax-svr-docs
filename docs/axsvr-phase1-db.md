@@ -19,11 +19,11 @@ Layout đĩa mỗi node:
 
 **Hostname + /etc/hosts:**
 ```bash
-sudo hostnamectl set-hostname pg-db1     # đổi tương ứng từng node
+sudo hostnamectl set-hostname ax-db01     # đổi tương ứng từng node
 sudo tee -a /etc/hosts >/dev/null <<'EOF'
-10.1.1.103  pg-db1
-10.1.1.104  pg-db2
-10.1.1.105  pg-db3
+10.1.1.103  ax-db01
+10.1.1.104  ax-db02
+10.1.1.105  ax-db03
 EOF
 ```
 
@@ -76,21 +76,46 @@ sudo ufw enable
 
 ## 1.1 — etcd cluster 3 node (DCS quorum)
 
-Tạo `/etc/default/etcd` trên từng node (chỉ khác NAME + IP).
+Mỗi node có 1 file `/etc/default/etcd` riêng. Dưới đây là **file đầy đủ cho từng node** — copy-paste thẳng, không phải tự đổi. Lưu ý dòng `ETCD_INITIAL_CLUSTER` **giống hệt trên cả 3 node** (danh bạ đủ 3 thành viên).
 
-**DB1 (10.1.1.103):**
+**DB1 — `/etc/default/etcd` (10.1.1.103):**
 ```ini
-ETCD_NAME="etcd-db1"
+ETCD_NAME="ax-db01"
 ETCD_DATA_DIR="/var/lib/etcd"
 ETCD_LISTEN_PEER_URLS="http://10.1.1.103:2380"
 ETCD_LISTEN_CLIENT_URLS="http://10.1.1.103:2379,http://127.0.0.1:2379"
 ETCD_INITIAL_ADVERTISE_PEER_URLS="http://10.1.1.103:2380"
 ETCD_ADVERTISE_CLIENT_URLS="http://10.1.1.103:2379"
-ETCD_INITIAL_CLUSTER="etcd-db1=http://10.1.1.103:2380,etcd-db2=http://10.1.1.104:2380,etcd-db3=http://10.1.1.105:2380"
+ETCD_INITIAL_CLUSTER="ax-db01=http://10.1.1.103:2380,ax-db02=http://10.1.1.104:2380,ax-db03=http://10.1.1.105:2380"
 ETCD_INITIAL_CLUSTER_TOKEN="ax-etcd-cluster"
 ETCD_INITIAL_CLUSTER_STATE="new"
 ```
-**DB2 / DB3:** copy y hệt, đổi `etcd-db1`->`etcd-db2`/`etcd-db3` và `10.1.1.103`->`.104`/`.105` ở 4 dòng đầu (dòng `INITIAL_CLUSTER` giữ nguyên cả 3).
+
+**DB2 — `/etc/default/etcd` (10.1.1.104):**
+```ini
+ETCD_NAME="ax-db02"
+ETCD_DATA_DIR="/var/lib/etcd"
+ETCD_LISTEN_PEER_URLS="http://10.1.1.104:2380"
+ETCD_LISTEN_CLIENT_URLS="http://10.1.1.104:2379,http://127.0.0.1:2379"
+ETCD_INITIAL_ADVERTISE_PEER_URLS="http://10.1.1.104:2380"
+ETCD_ADVERTISE_CLIENT_URLS="http://10.1.1.104:2379"
+ETCD_INITIAL_CLUSTER="ax-db01=http://10.1.1.103:2380,ax-db02=http://10.1.1.104:2380,ax-db03=http://10.1.1.105:2380"
+ETCD_INITIAL_CLUSTER_TOKEN="ax-etcd-cluster"
+ETCD_INITIAL_CLUSTER_STATE="new"
+```
+
+**DB3 — `/etc/default/etcd` (10.1.1.105):**
+```ini
+ETCD_NAME="ax-db03"
+ETCD_DATA_DIR="/var/lib/etcd"
+ETCD_LISTEN_PEER_URLS="http://10.1.1.105:2380"
+ETCD_LISTEN_CLIENT_URLS="http://10.1.1.105:2379,http://127.0.0.1:2379"
+ETCD_INITIAL_ADVERTISE_PEER_URLS="http://10.1.1.105:2380"
+ETCD_ADVERTISE_CLIENT_URLS="http://10.1.1.105:2379"
+ETCD_INITIAL_CLUSTER="ax-db01=http://10.1.1.103:2380,ax-db02=http://10.1.1.104:2380,ax-db03=http://10.1.1.105:2380"
+ETCD_INITIAL_CLUSTER_TOKEN="ax-etcd-cluster"
+ETCD_INITIAL_CLUSTER_STATE="new"
+```
 
 > etcd data để ở `/var/lib/etcd` (nhỏ, là DCS — không phải data DB). Muốn gom vào /data thì đổi `ETCD_DATA_DIR=/data/etcd` + tạo thư mục, nhưng không bắt buộc.
 
@@ -99,6 +124,16 @@ ETCD_INITIAL_CLUSTER_STATE="new"
 sudo systemctl enable --now etcd
 etcdctl --endpoints=http://10.1.1.103:2379,http://10.1.1.104:2379,http://10.1.1.105:2379 endpoint health
 ```
+
+> **⚠️ Lỗi thường gặp — `endpoint health` failed, etcd chỉ nghe trên `127.0.0.1:2379`, không nghe trên IP LAN.**
+> Nguyên nhân: gói etcd tự start ngay lúc `apt install` bằng config MẶC ĐỊNH (chỉ bind localhost). Khi sửa `/etc/default/etcd` xong, lệnh `enable --now` **không restart** tiến trình đang chạy sẵn → vẫn giữ config cũ; data-dir cũng đã init bằng member mặc định. Cách xử lý — làm trên **cả 3 node gần đồng thời** (vì `INITIAL_CLUSTER_STATE="new"`):
+> ```bash
+> sudo systemctl stop etcd
+> sudo rm -rf /var/lib/etcd/*        # xoá member init sai — CHỈ an toàn lúc dựng mới, chưa có data thật
+> sudo systemctl restart etcd
+> sudo ss -tlnp | grep 2379          # verify: phải thấy 10.1.1.103:2379 (IP LAN), không chỉ 127.0.0.1
+> ```
+> Kiểm tra thêm nếu vẫn lỗi: `systemctl cat etcd | grep EnvironmentFile` phải có `-/etc/default/etcd`.
 
 ---
 
@@ -110,15 +145,19 @@ openssl rand -base64 24   # superuser
 openssl rand -base64 24   # replicator
 ```
 
-Tạo `/etc/patroni/patroni.yml`. File cho **DB1** — DB2/DB3 chỉ đổi `name` + IP:
+Mỗi node có 1 file `/etc/patroni/patroni.yml` riêng. Dưới đây là **file đầy đủ cho từng node** — copy-paste thẳng.
 
+> ⚠️ **Chỉ 5 dòng khác nhau giữa 3 node** (`name`, `restapi.listen/connect_address`, `postgresql.listen/connect_address`). Mọi thứ còn lại (`bootstrap`, `etcd3.hosts`, mật khẩu, `data_dir`, `tags`) **PHẢI giống hệt cả 3 node**. Nếu sau này chỉnh tham số chung (vd `shared_buffers`, `pg_hba`), **sửa cả 3 file**.
+> Mật khẩu `<MK_SUPERUSER>` / `<MK_REPLICATOR>` giống nhau trên cả 3 node. WAL nằm trong `data_dir/pg_wal` → tự động trong `/data`.
+
+**DB1 — `/etc/patroni/patroni.yml` (10.1.1.103):**
 ```yaml
 scope: ax-pg-cluster
 namespace: /service/
-name: pg-db1                       # DB2 -> pg-db2, DB3 -> pg-db3
+name: ax-db01
 
 restapi:
-  listen: 10.1.1.103:8008          # đổi .104 / .105
+  listen: 10.1.1.103:8008
   connect_address: 10.1.1.103:8008
 
 etcd3:
@@ -161,7 +200,7 @@ bootstrap:
     - host replication replicator 10.1.1.0/24 scram-sha-256
 
 postgresql:
-  listen: 10.1.1.103:5432          # đổi .104 / .105
+  listen: 10.1.1.103:5432
   connect_address: 10.1.1.103:5432
   data_dir: /data/postgresql/17/main      # <- DATA trong /data
   bin_dir: /usr/lib/postgresql/17/bin
@@ -181,8 +220,145 @@ tags:
   nosync: false
 ```
 
-> `<MK_SUPERUSER>` / `<MK_REPLICATOR>` phải GIỐNG NHAU trên cả 3 node.
-> WAL nằm trong `data_dir/pg_wal` → tự động trong `/data`.
+**DB2 — `/etc/patroni/patroni.yml` (10.1.1.104):**
+```yaml
+scope: ax-pg-cluster
+namespace: /service/
+name: ax-db02
+
+restapi:
+  listen: 10.1.1.104:8008
+  connect_address: 10.1.1.104:8008
+
+etcd3:
+  hosts:
+    - 10.1.1.103:2379
+    - 10.1.1.104:2379
+    - 10.1.1.105:2379
+
+bootstrap:
+  dcs:
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    maximum_lag_on_failover: 1048576
+    synchronous_mode: true
+    synchronous_node_count: 1
+    postgresql:
+      use_pg_rewind: true
+      use_slots: true
+      parameters:
+        max_connections: 200
+        shared_buffers: 2GB
+        wal_level: replica
+        hot_standby: "on"
+        max_wal_senders: 10
+        max_replication_slots: 10
+        wal_keep_size: 1GB
+        password_encryption: scram-sha-256
+        # --- Log vào /data ---
+        logging_collector: "on"
+        log_directory: "/data/postgresql/logs"
+        log_filename: "postgresql-%Y-%m-%d.log"
+  initdb:
+    - encoding: UTF8
+    - data-checksums
+  pg_hba:
+    - local all all trust
+    - host all all 127.0.0.1/32 scram-sha-256
+    - host all all 10.1.1.0/24 scram-sha-256              # web app kết nối
+    - host replication replicator 10.1.1.0/24 scram-sha-256
+
+postgresql:
+  listen: 10.1.1.104:5432
+  connect_address: 10.1.1.104:5432
+  data_dir: /data/postgresql/17/main      # <- DATA trong /data
+  bin_dir: /usr/lib/postgresql/17/bin
+  pgpass: /tmp/pgpass
+  authentication:
+    superuser:
+      username: postgres
+      password: "<MK_SUPERUSER>"
+    replication:
+      username: replicator
+      password: "<MK_REPLICATOR>"
+
+tags:
+  nofailover: false
+  noloadbalance: false
+  clonefrom: false
+  nosync: false
+```
+
+**DB3 — `/etc/patroni/patroni.yml` (10.1.1.105):**
+```yaml
+scope: ax-pg-cluster
+namespace: /service/
+name: ax-db03
+
+restapi:
+  listen: 10.1.1.105:8008
+  connect_address: 10.1.1.105:8008
+
+etcd3:
+  hosts:
+    - 10.1.1.103:2379
+    - 10.1.1.104:2379
+    - 10.1.1.105:2379
+
+bootstrap:
+  dcs:
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    maximum_lag_on_failover: 1048576
+    synchronous_mode: true
+    synchronous_node_count: 1
+    postgresql:
+      use_pg_rewind: true
+      use_slots: true
+      parameters:
+        max_connections: 200
+        shared_buffers: 2GB
+        wal_level: replica
+        hot_standby: "on"
+        max_wal_senders: 10
+        max_replication_slots: 10
+        wal_keep_size: 1GB
+        password_encryption: scram-sha-256
+        # --- Log vào /data ---
+        logging_collector: "on"
+        log_directory: "/data/postgresql/logs"
+        log_filename: "postgresql-%Y-%m-%d.log"
+  initdb:
+    - encoding: UTF8
+    - data-checksums
+  pg_hba:
+    - local all all trust
+    - host all all 127.0.0.1/32 scram-sha-256
+    - host all all 10.1.1.0/24 scram-sha-256              # web app kết nối
+    - host replication replicator 10.1.1.0/24 scram-sha-256
+
+postgresql:
+  listen: 10.1.1.105:5432
+  connect_address: 10.1.1.105:5432
+  data_dir: /data/postgresql/17/main      # <- DATA trong /data
+  bin_dir: /usr/lib/postgresql/17/bin
+  pgpass: /tmp/pgpass
+  authentication:
+    superuser:
+      username: postgres
+      password: "<MK_SUPERUSER>"
+    replication:
+      username: replicator
+      password: "<MK_REPLICATOR>"
+
+tags:
+  nofailover: false
+  noloadbalance: false
+  clonefrom: false
+  nosync: false
+```
 
 **Systemd** `/etc/systemd/system/patroni.service` (cả 3 node giống nhau):
 ```ini
@@ -228,9 +404,9 @@ sudo systemctl enable --now patroni        # DB3
 ```
 + Cluster: ax-pg-cluster ------+--------------+---------+----+-----------+
 | Member | Host        | Role         | State   | TL | Lag in MB |
-| pg-db1 | 10.1.1.103  | Leader       | running |  1 |           |
-| pg-db2 | 10.1.1.104  | Sync Standby | running |  1 |         0 |
-| pg-db3 | 10.1.1.105  | Replica      | running |  1 |         0 |
+| ax-db01 | 10.1.1.103  | Leader       | running |  1 |           |
+| ax-db02 | 10.1.1.104  | Sync Standby | running |  1 |         0 |
+| ax-db03 | 10.1.1.105  | Replica      | running |  1 |         0 |
 ```
 
 **Xác nhận data nằm đúng /data:**

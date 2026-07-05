@@ -72,7 +72,7 @@ sudo ufw allow from 10.1.1.96 to any port 2379 proto tcp   # đã mở ở Phase
 # bật stub_status
 sudo tee /etc/nginx/conf.d/status.conf >/dev/null <<'EOF'
 server {
-  listen 10.1.1.98:8080;          # đổi .99 cho AX-Proxy02
+  listen 10.1.1.98:8080;          # đổi .99 cho ax-proxy02
   location /stub_status { stub_status; allow 10.1.1.96; deny all; }
 }
 EOF
@@ -119,8 +119,8 @@ scrape_configs:
   - job_name: node
     static_configs:
       - targets:
-          - 10.1.1.98:9100   # AX-Proxy01
-          - 10.1.1.99:9100   # AX-Proxy02
+          - 10.1.1.98:9100   # ax-proxy01
+          - 10.1.1.99:9100   # ax-proxy02
           - 10.1.1.97:9100   # nas
           - 10.1.1.103:9100  # db1
           - 10.1.1.104:9100  # db2

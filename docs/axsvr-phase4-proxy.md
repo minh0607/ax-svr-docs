@@ -5,19 +5,19 @@
 > **Giai đoạn sau:** bật HTTPS (terminate TLS tại Nginx) — xem mục 4.1b.
 
 ```
-User --WAN--> 107.118.210.100 (VIP) --> Nginx AX-Proxy01 .98 / AX-Proxy02 .99
+User --WAN--> 107.118.210.100 (VIP) --> Nginx ax-proxy01 .98 / ax-proxy02 .99
                                           | LAN
                                           v
-                          IIS Web1 10.1.1.101:80 / Web2 10.1.1.102:80
+                          IIS ax-web01 10.1.1.101:80 / ax-web02 10.1.1.102:80
 ```
 
 | | WAN 107.118.210.x | LAN 10.1.1.x |
 |---|---|---|
-| AX-Proxy01 | .98 (MASTER) | .98 |
-| AX-Proxy02 | .99 (BACKUP) | .99 |
+| ax-proxy01 | .98 (MASTER) | .98 |
+| ax-proxy02 | .99 (BACKUP) | .99 |
 | Proxy-VIP | **.100** | — |
-| Web 1 (IIS) | .101 | .101 (nhận traffic) |
-| Web 2 (IIS) | .102 | .102 (nhận traffic) |
+| ax-web01 (IIS) | .101 | .101 (nhận traffic) |
+| ax-web02 (IIS) | .102 | .102 (nhận traffic) |
 
 ---
 
@@ -145,7 +145,7 @@ systemctl is-active --quiet nginx
 sudo chmod +x /etc/keepalived/check_nginx.sh
 ```
 
-**AX-Proxy01 (MASTER)** `/etc/keepalived/keepalived.conf`:
+**ax-proxy01 (MASTER)** `/etc/keepalived/keepalived.conf`:
 ```conf
 vrrp_script chk_nginx {
     script "/etc/keepalived/check_nginx.sh"
@@ -174,12 +174,12 @@ vrrp_instance AX_PROXY {
 }
 ```
 
-**AX-Proxy02 (BACKUP)** — chỉ khác `state` và `priority`:
+**ax-proxy02 (BACKUP)** — chỉ khác `state` và `priority`:
 ```conf
 vrrp_instance AX_PROXY {
     state BACKUP
     interface <WAN_IF>
-    virtual_router_id 51       # phải GIỐNG AX-Proxy01
+    virtual_router_id 51       # phải GIỐNG ax-proxy01
     priority 100               # thấp hơn
     advert_int 1
     authentication {
@@ -194,7 +194,7 @@ vrrp_instance AX_PROXY {
     }
 }
 ```
-(phần `vrrp_script chk_nginx { ... }` copy y hệt AX-Proxy01)
+(phần `vrrp_script chk_nginx { ... }` copy y hệt ax-proxy01)
 
 ```bash
 sudo systemctl enable --now keepalived
@@ -205,8 +205,8 @@ sudo systemctl enable --now keepalived
 ## 4.3 — Kiểm tra
 
 ```bash
-# Trên AX-Proxy01 phải thấy VIP:
-ip a | grep 107.118.210.100        # xuất hiện trên AX-Proxy01 (MASTER)
+# Trên ax-proxy01 phải thấy VIP:
+ip a | grep 107.118.210.100        # xuất hiện trên ax-proxy01 (MASTER)
 
 # Từ máy client (WAN):
 curl -I http://107.118.210.100     # ra HTTP 200 từ web
@@ -218,11 +218,11 @@ curl -I http://107.118.210.100     # ra HTTP 200 từ web
 
 **1) Proxy chết -> VIP nhảy sang proxy còn lại:**
 ```bash
-sudo systemctl stop keepalived      # trên AX-Proxy01
-# VIP 107.118.210.100 phải xuất hiện trên AX-Proxy02 trong ~1-3s
-ip a | grep 107.118.210.100           # kiểm tra trên AX-Proxy02
+sudo systemctl stop keepalived      # trên ax-proxy01
+# VIP 107.118.210.100 phải xuất hiện trên ax-proxy02 trong ~1-3s
+ip a | grep 107.118.210.100           # kiểm tra trên ax-proxy02
 curl -I http://107.118.210.100        # vẫn truy cập được
-sudo systemctl start keepalived     # bật lại AX-Proxy01 -> giành lại VIP (priority cao)
+sudo systemctl start keepalived     # bật lại ax-proxy01 -> giành lại VIP (priority cao)
 ```
 
 **2) Nginx chết (không phải cả VM) -> nhờ chk_nginx, VIP cũng nhường:**
@@ -234,7 +234,7 @@ sudo systemctl start nginx
 
 **3) Web chết -> Nginx tự loại khỏi pool:**
 ```bash
-# Tắt IIS Web1 -> Nginx route hết về Web2, user không gián đoạn (max_fails/fail_timeout)
+# Tắt IIS ax-web01 -> Nginx route hết về ax-web02, user không gián đoạn (max_fails/fail_timeout)
 ```
 
 ---

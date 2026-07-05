@@ -27,24 +27,24 @@ PWHASH="${PWHASH:-}"
 # ----- BẢNG HOST: hostname  wan_ip  lan_ip  data_disk  backup_disk ----------
 # lan_ip = "-"  nghĩa là chỉ 1 NIC (vd DevDB).  data/backup = yes|no
 read -r -d '' HOST_TABLE <<'EOF' || true
-AX-Proxy01   107.118.210.98   10.1.1.98    no   no
-AX-Proxy02   107.118.210.99   10.1.1.99    no   no
+ax-proxy01   107.118.210.98   10.1.1.98    no   no
+ax-proxy02   107.118.210.99   10.1.1.99    no   no
 nas      107.118.210.97   10.1.1.97    yes  no
-pg-db1   107.118.210.103  10.1.1.103   yes  no
-pg-db2   107.118.210.104  10.1.1.104   yes  no
-pg-db3   107.118.210.105  10.1.1.105   yes  yes
+ax-db01   107.118.210.103  10.1.1.103   yes  no
+ax-db02   107.118.210.104  10.1.1.104   yes  no
+ax-db03   107.118.210.105  10.1.1.105   yes  yes
 mon      107.118.210.96   10.1.1.96    yes  no
 devdb    107.118.210.90   -            yes  no
 EOF
 
 # Khối /etc/hosts chung cho mọi node
 read -r -d '' HOSTS_BLOCK <<'EOF' || true
-107.118.210.98   AX-Proxy01
-107.118.210.99   AX-Proxy02
+107.118.210.98   ax-proxy01
+107.118.210.99   ax-proxy02
 10.1.1.97      nas
-10.1.1.103     pg-db1
-10.1.1.104     pg-db2
-10.1.1.105     pg-db3
+10.1.1.103     ax-db01
+10.1.1.104     ax-db02
+10.1.1.105     ax-db03
 10.1.1.96      mon
 EOF
 

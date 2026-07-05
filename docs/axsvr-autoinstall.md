@@ -49,22 +49,22 @@ cd docs/autoinstall
 ```
 Kết quả trong `out/`:
 ```
-out/pg-db1-seed.iso
-out/pg-db2-seed.iso
-out/pg-db3-seed.iso     (có cả /data + /backup)
-out/AX-Proxy01-seed.iso ...
+out/ax-db01-seed.iso
+out/ax-db02-seed.iso
+out/ax-db03-seed.iso     (có cả /data + /backup)
+out/ax-proxy01-seed.iso ...
 ```
 
 ## Bước 4 — Gắn ISO & boot từng VM
 
 Mỗi VM gắn **2 ổ CD/ISO**:
 1. ISO cài **Ubuntu Server 24.04** (`ubuntu-24.04-live-server-amd64.iso`)
-2. **seed ISO** tương ứng host (vd `pg-db3-seed.iso`)
+2. **seed ISO** tương ứng host (vd `ax-db03-seed.iso`)
 
 Cấu hình đĩa ảo của VM:
 | Vai trò | Đĩa cần gắn |
 |---|---|
-| AX-Proxy01/02 | sda (OS) |
+| ax-proxy01/02 | sda (OS) |
 | nas, db1, db2, mon, devdb | sda (OS) + **sdb** (→ `/data`) |
 | **db3** | sda (OS) + **sdb** (`/data`) + **sdc** (`/backup`) |
 
