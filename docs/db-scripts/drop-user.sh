@@ -1,28 +1,28 @@
 #!/usr/bin/env bash
-# Xoá role/user AN TOÀN: chuyển quyền sở hữu object sang owner khác (mọi DB) rồi mới DROP.
-# Dùng: ./drop-user.sh <user> [reassign_to]     (mặc định reassign_to=dbadmin)
-#   vd: ./drop-user.sh dev_a
-#       ./drop-user.sh dev_a dbadmin
+# SAFE role/user drop: reassign owned objects to another owner (across all DBs) before DROP.
+# Usage: ./drop-user.sh <user> [reassign_to]     (default reassign_to=dbadmin)
+#   e.g.: ./drop-user.sh dev_a
+#         ./drop-user.sh dev_a dbadmin
 source "$(cd "$(dirname "$0")" && pwd)/_common.sh"
 
 PROTECTED="postgres dbadmin useradmin replicator"
 
-NAME="${1:-}"; [ -n "$NAME" ] || read -rp "User cần xoá: " NAME
+NAME="${1:-}"; [ -n "$NAME" ] || read -rp "User to drop: " NAME
 REASSIGN_TO="${2:-dbadmin}"
 
-# Chốt chặn: không xoá role hệ thống/quan trọng
+# Guard: do not drop system/critical roles
 for p in $PROTECTED; do
-  [ "$NAME" = "$p" ] && die "TỪ CHỐI: '$NAME' là role được bảo vệ, không xoá qua script này."
+  [ "$NAME" = "$p" ] && die "DENIED: '$NAME' is a protected role, will not drop via this script."
 done
-role_exists "$NAME" || die "Role '$NAME' không tồn tại."
-role_exists "$REASSIGN_TO" || die "Role nhận quyền '$REASSIGN_TO' không tồn tại."
+role_exists "$NAME" || die "Role '$NAME' does not exist."
+role_exists "$REASSIGN_TO" || die "Reassign target role '$REASSIGN_TO' does not exist."
 
-echo "Sẽ XOÁ role: $NAME"
-echo "  - Chuyển mọi object đang sở hữu -> $REASSIGN_TO (trên TẤT CẢ database)"
-echo "  - Thu hồi quyền còn lại rồi DROP ROLE"
-confirm "Xác nhận xoá '$NAME'?" || { echo "Hủy."; exit 0; }
+echo "Will DROP role: $NAME"
+echo "  - Reassign all owned objects -> $REASSIGN_TO (across ALL databases)"
+echo "  - Revoke remaining privileges, then DROP ROLE"
+confirm "Confirm dropping '$NAME'?" || { echo "Aborted."; exit 0; }
 
-# REASSIGN + DROP OWNED phải chạy trong TỪNG database
+# REASSIGN + DROP OWNED must run within EACH database
 DBS="$($PSQL -tAc "SELECT datname FROM pg_database WHERE datistemplate=false AND datallowconn")"
 for db in $DBS; do
   echo "  [db: $db] reassign + drop owned ..."
@@ -37,4 +37,4 @@ done
 $PSQL -v u="$NAME" <<'SQL'
 DROP ROLE :"u";
 SQL
-echo ">> Đã xoá role: $NAME (object đã chuyển cho $REASSIGN_TO)"
+echo ">> Dropped role: $NAME (objects reassigned to $REASSIGN_TO)"

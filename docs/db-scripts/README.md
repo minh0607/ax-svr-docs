@@ -1,139 +1,155 @@
-# AX Svr — DB Scripts (quản trị PostgreSQL)
+# AX Svr — DB Scripts (PostgreSQL administration)
 
-Bộ script tạo role/database/phân quyền. Dùng cho **DevDB** và **Production** (Patroni).
+A set of scripts for creating roles/databases and managing privileges. Used for both **DevDB** and **Production** (Patroni).
 
-## ⭐ Script TỔNG: `axdb.sh` (1 file, gộp tất cả)
+## ⭐ ALL-IN-ONE script: `axdb.sh` (single file, everything combined)
 
-Nếu muốn **1 script duy nhất**, dùng `axdb.sh` (self-contained, không cần file khác).
+If you want **a single script**, use `axdb.sh` (self-contained, no other files needed).
 
-**Cách 1 — MENU tương tác (dễ nhất):** chạy không tham số
+**Option 1 — Interactive MENU (easiest):** run with no arguments
 ```bash
-./axdb.sh            # mở menu, chọn số 0-12
+./axdb.sh            # opens the menu, pick a number 0-18
 ```
 ```
 ============== AX DB MANAGER ==============
-  1) Tạo DB admin       7) REVOKE quyền
-  2) Tạo user admin     8) Đổi mật khẩu
-  3) Tạo user           9) Pin user vào IP
-  4) Tạo database      10) Xoá user
-  5) Tạo group roles   11) Xoá database
-  6) GRANT quyền       12) Xem roles/dbs/...
-  0) Thoát
+  1) Create DB admin   10) Drop user
+  2) Create user admin 11) Drop database
+  3) Create user       12) View roles/dbs/...
+  4) Create database   13) Connection check
+  5) Create group roles 14) Create table
+  6) GRANT privileges  15) Set table owner
+  7) REVOKE privileges 16) Set database owner
+  8) Change password   17) Role dashboard
+  9) Pin user to IP    18) Show / inspect
+                        0) Exit
 ```
 
-**Cách 2 — Lệnh trực tiếp** (cho script/tự động hoá):
+**Option 2 — Direct commands** (for scripts/automation):
 ```bash
-./axdb.sh help                              # xem tất cả lệnh
+./axdb.sh help                              # list all commands
 ./axdb.sh create-admin dbadmin
 ./axdb.sh create-db appdb dbadmin
 ./axdb.sh setup-groups appdb
 ./axdb.sh create-user dev_a appdb_readonly
 ./axdb.sh grant dev_a appdb orders "SELECT,INSERT"
-./axdb.sh passwd dev_a
-./axdb.sh bind-ip a 1.1.1.1                  # tự nhận DevDB(file) hay Patroni(DCS)
+./axdb.sh create-table appdb orders "id serial primary key, note text" dbadmin
+./axdb.sh set-owner appdb orders dbadmin     # change TABLE owner
+./axdb.sh set-db-owner appdb dbadmin         # change DATABASE owner
+./axdb.sh passwd dev_a                        # reset/change password
+./axdb.sh bind-ip a 1.1.1.1                  # auto-detects DevDB(file) or Patroni(DCS)
 ./axdb.sh drop-user dev_a
 ./axdb.sh drop-db appdb
 ./axdb.sh list roles
-```
-> `bind-ip` **tự phát hiện**: có `patronictl` + `/etc/patroni/patroni.yml` → dùng DCS; ngược lại sửa file. Ép bằng `--file` / `--patroni`.
 
-Các script rời bên dưới vẫn dùng được (cùng logic) — chọn 1 trong 2 cách.
+# Inspect / show (read-only)
+./axdb.sh dashboard dev_a                     # everything a user/group can access
+./axdb.sh show dbs                            # databases on the server (owner, size)
+./axdb.sh show tables appdb                   # tables in a database (owner, size)
+./axdb.sh show structure appdb orders         # table columns/indexes (\d)
+./axdb.sh show owner appdb orders             # db/table owner
+./axdb.sh show perms appdb orders             # privileges (\dp)
+```
+> `bind-ip` **auto-detects**: if `patronictl` + `/etc/patroni/patroni.yml` exist → use DCS; otherwise edit the file. Force with `--file` / `--patroni`.
+
+The standalone scripts below still work (same logic) — pick either approach.
 
 ---
 
-## Kết nối với quyền admin
+## Connecting with admin privileges
 
-| Cách | Lệnh |
+| Method | Command |
 |---|---|
-| **Chạy ngay trên DB server** (mặc định) | chạy script bình thường — dùng socket as `postgres` |
-| **Chạy từ xa** (qua dbadmin) | `export PSQL_ADMIN="psql -h 107.118.210.90 -U dbadmin"` rồi chạy script |
+| **Run directly on the DB server** (default) | run the script as usual — connects via socket as `postgres` |
+| **Run remotely** (via dbadmin) | `export PSQL_ADMIN="psql -h 107.118.210.90 -U dbadmin"` then run the script |
 
-> Production (Patroni): chạy trên node **Leader**, hoặc từ xa qua connection multi-host trỏ `target_session_attrs=read-write`.
+> Production (Patroni): run on the **Leader** node, or remotely via a multi-host connection pointing to `target_session_attrs=read-write`.
 
-## Danh sách script
+## Script list
 
-| Script | Việc |
+| Script | Purpose |
 |---|---|
-| `create-db-admin.sh <tên>` | Tạo **DBA** (SUPERUSER) — quản trị từ xa, thay `postgres` gốc |
-| `create-user-admin.sh <tên>` | Tạo **user admin** (CREATEROLE+CREATEDB, không superuser) |
-| `create-user.sh <user> [group]` | Tạo user thường, tuỳ chọn gán nhóm |
-| `create-database.sh <db> [owner]` | Tạo database + thu hồi quyền PUBLIC |
-| `setup-group-roles.sh <db>` | Tạo nhóm `<db>_readonly` / `<db>_readwrite` + default privileges |
-| `grant-table.sh <grant\|revoke> <role> <db> <table> <privs>` | Phân quyền theo từng bảng |
-| `reset-password.sh <role>` | Đổi mật khẩu role (nhập 2 lần, ẩn) |
-| `bind-user-ip.sh <user> <ip[,ip2]>` / `<user> --unpin` | **Pin user chỉ từ IP** — **DevDB/standalone** (sửa pg_hba file) |
-| `bind-user-ip-patroni.sh <user> <ip[,ip2]>` / `<user> --unpin` | **Pin user chỉ từ IP** — **Production Patroni** (qua DCS/patronictl) |
-| `drop-user.sh <user> [reassign_to]` | **Xoá user an toàn** — chuyển object sang owner khác rồi drop |
-| `drop-database.sh <db>` | **Xoá database an toàn** — nhắc backup + gõ lại tên + FORCE |
-| `list-access.sh <roles\|dbs\|members <g>\|grants <db>>` | Xem role/db/quyền |
+| `create-db-admin.sh <name>` | Create a **DBA** (SUPERUSER) — remote administration, replaces the built-in `postgres` |
+| `create-user-admin.sh <name>` | Create a **user admin** (CREATEROLE+CREATEDB, not superuser) |
+| `create-user.sh <user> [group]` | Create a regular user, optionally assigned to a group |
+| `create-database.sh <db> [owner]` | Create a database + revoke PUBLIC privileges |
+| `setup-group-roles.sh <db>` | Create the `<db>_readonly` / `<db>_readwrite` groups + default privileges |
+| `grant-table.sh <grant\|revoke> <role> <db> <table> <privs>` | Manage privileges per table |
+| `reset-password.sh <role>` | Change a role's password (entered twice, hidden) |
+| `bind-user-ip.sh <user> <ip[,ip2]>` / `<user> --unpin` | **Pin a user to specific IPs only** — **DevDB/standalone** (edits the pg_hba file) |
+| `bind-user-ip-patroni.sh <user> <ip[,ip2]>` / `<user> --unpin` | **Pin a user to specific IPs only** — **Production Patroni** (via DCS/patronictl) |
+| `drop-user.sh <user> [reassign_to]` | **Safely drop a user** — reassign objects to another owner, then drop |
+| `drop-database.sh <db>` | **Safely drop a database** — prompts for backup + retype the name + FORCE |
+| `list-access.sh <roles\|dbs\|members <g>\|grants <db>>` | View roles/dbs/privileges |
 
-### Lưu ý các script XOÁ (destructive)
-- `drop-user.sh`: chặn xoá role bảo vệ (`postgres`, `dbadmin`, `useradmin`, `replicator`); chuyển object sở hữu sang `reassign_to` (mặc định `dbadmin`) trên **mọi database** trước khi DROP.
-- `drop-database.sh`: chặn db hệ thống; in dung lượng + số kết nối; **bắt gõ lại đúng tên** mới xoá; dùng `WITH (FORCE)` để ngắt kết nối. **Không hoàn tác được — backup trước!**
+### Notes on the DROP scripts (destructive)
+- `drop-user.sh`: blocks dropping protected roles (`postgres`, `dbadmin`, `useradmin`, `replicator`); reassigns owned objects to `reassign_to` (default `dbadmin`) across **every database** before DROP.
+- `drop-database.sh`: blocks system databases; prints size + connection count; **requires retyping the exact name** before dropping; uses `WITH (FORCE)` to terminate connections. **Cannot be undone — back up first!**
 
-## Quy trình điển hình (ví dụ database `appdb`)
+## Typical workflow (example database `appdb`)
 
 ```bash
-# 1) DBA + user admin (1 lần cho cả hệ thống)
+# 1) DBA + user admin (once for the whole system)
 ./create-db-admin.sh   dbadmin
 ./create-user-admin.sh useradmin
 
-# 2) Tạo database + nhóm quyền
+# 2) Create the database + privilege groups
 ./create-database.sh    appdb dbadmin
 ./setup-group-roles.sh  appdb           # -> appdb_readonly, appdb_readwrite
 
-# 3) Tạo user và gán nhóm
-./create-user.sh dev_a appdb_readonly   # dev_a chỉ ĐỌC
-./create-user.sh dev_b appdb_readwrite  # dev_b ĐỌC+GHI
+# 3) Create users and assign groups
+./create-user.sh dev_a appdb_readonly   # dev_a READ only
+./create-user.sh dev_b appdb_readwrite  # dev_b READ+WRITE
 
-# 4) Phân quyền lẻ theo bảng (khi cần ngoại lệ)
+# 4) Per-table privileges (for exceptions)
 ./grant-table.sh grant  dev_a appdb orders "SELECT,INSERT,UPDATE"
 ./grant-table.sh revoke dev_a appdb orders INSERT
 
-# 5) Kiểm tra
+# 5) Verify
 ./list-access.sh roles
 ./list-access.sh grants appdb
 ```
 
-## Mô hình phân quyền khuyến nghị (nhiều user)
+## Recommended privilege model (many users)
 
 ```
-Quyền gắn vào NHÓM (group role), KHÔNG gắn trực tiếp vào từng user:
+Attach privileges to a GROUP (group role), NOT directly to each user:
   appdb_readonly  ← dev_a, dev_c, reporting...
   appdb_readwrite ← dev_b, app_service...
-=> thêm/bớt người chỉ cần GRANT/REVOKE nhóm; quyền bảng mới tự áp nhờ DEFAULT PRIVILEGES.
+=> adding/removing people only requires GRANT/REVOKE on the group; new table privileges apply automatically thanks to DEFAULT PRIVILEGES.
 ```
 
-## Pin account vào IP cụ thể (`bind-user-ip.sh`)
+> `grant` / `revoke` work for **any role** — a user OR a group. Prefer granting to groups; use per-user grants only for exceptions.
 
-IP **không** gán ở account — gán ở `pg_hba.conf`. Script này quản lý giúp:
+## Pin an account to specific IPs (`bind-user-ip.sh`)
+
+IPs are **not** set on the account — they are set in `pg_hba.conf`. This script manages that for you:
 ```bash
-./bind-user-ip.sh app_svc 10.1.1.101          # app_svc CHỈ từ IP này
-./bind-user-ip.sh dev_a   192.0.2.10,192.0.2.11  # nhiều IP
-./bind-user-ip.sh dev_a   --unpin             # bỏ pin -> theo rule chung
+./bind-user-ip.sh app_svc 10.1.1.101          # app_svc ONLY from this IP
+./bind-user-ip.sh dev_a   192.0.2.10,192.0.2.11  # multiple IPs
+./bind-user-ip.sh dev_a   --unpin             # remove pin -> back to the general rule
 ```
-- Cơ chế: thêm `include_if_exists pg_hba_peruser.conf` ở đầu `pg_hba.conf`, ghi block `allow <IP> + reject mọi IP khác` cho user, rồi reload + kiểm tra lỗi.
-- **Dùng khi:** account IP cố định (service account, server, máy DBA). **Không nên** pin dev laptop IP hay đổi (phải sửa + reload mỗi lần).
-- **3 lớp:** ufw (IP toàn cục) · pg_hba/pin (IP theo user) · GRANT (quyền table).
+- How it works: adds `include_if_exists pg_hba_peruser.conf` at the top of `pg_hba.conf`, writes an `allow <IP> + reject all other IPs` block for the user, then reloads + checks for errors.
+- **Use when:** the account has a fixed IP (service account, server, DBA machine). **Avoid** pinning a dev laptop whose IP changes (you'd have to edit + reload every time).
+- **3 layers:** ufw (global IP) · pg_hba/pin (per-user IP) · GRANT (table privileges).
 
-### Pin IP — 2 bản (giống MySQL `user@host`)
-| Môi trường | Script | Cơ chế |
+### Pin IP — 2 variants (like MySQL `user@host`)
+| Environment | Script | Mechanism |
 |---|---|---|
-| DevDB / standalone | `bind-user-ip.sh` | sửa file `pg_hba.conf` + reload |
-| Production Patroni | `bind-user-ip-patroni.sh` | cập nhật DCS qua `patronictl edit-config` + reload cụm |
+| DevDB / standalone | `bind-user-ip.sh` | edits `pg_hba.conf` file + reload |
+| Production Patroni | `bind-user-ip-patroni.sh` | updates DCS via `patronictl edit-config` + cluster reload |
 
 ```bash
 # DevDB:
-./bind-user-ip.sh a 1.1.1.1            # a CHỈ vào được từ 1.1.1.1, IP khác bị reject
-# Production (chạy trên 1 DB node):
+./bind-user-ip.sh a 1.1.1.1            # a can ONLY connect from 1.1.1.1, other IPs are rejected
+# Production (run on one DB node):
 ./bind-user-ip-patroni.sh a 1.1.1.1
 ```
-> ⚠️ **Không** dùng `bind-user-ip.sh` (sửa file) trên cụm Patroni — Patroni sẽ ghi đè. Dùng bản `-patroni`.
-> Khác MySQL: PG là **1 role 1 mật khẩu**, IP tách ở pg_hba; cần mật khẩu khác theo IP thì tạo role riêng mỗi IP.
+> ⚠️ **Do not** use `bind-user-ip.sh` (file edit) on a Patroni cluster — Patroni will overwrite it. Use the `-patroni` variant.
+> Unlike MySQL: PG is **one role, one password**, with IP separated in pg_hba; if you need a different password per IP, create a separate role for each IP.
 
-## Lưu ý bảo mật
+## Security notes
 
-- Mật khẩu nhập qua prompt ẩn (không vào shell history).
-- Nếu `log_statement='all'` (DevDB) → lệnh tạo/đổi mật khẩu có thể bị ghi log. Production để `log_statement='ddl'`/`none`.
-- `postgres` gốc giữ local-only; quản trị từ xa dùng `dbadmin`.
-- 3 lớp kiểm soát: **ufw** (IP) → **pg_hba** (mật khẩu) → **các script này** (quyền role/table).
+- Passwords are entered via a hidden prompt (not saved to shell history).
+- If `log_statement='all'` (DevDB) → create/change-password commands may be logged. In Production keep `log_statement='ddl'`/`none`.
+- The built-in `postgres` stays local-only; use `dbadmin` for remote administration.
+- 3 control layers: **ufw** (IP) → **pg_hba** (password) → **these scripts** (role/table privileges).

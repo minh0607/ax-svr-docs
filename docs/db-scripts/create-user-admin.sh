@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Tạo USER ADMIN — role quản lý user/DB (CREATEROLE + CREATEDB) nhưng KHÔNG phải superuser.
-# Dùng để uỷ quyền tạo user/cấp quyền mà không cần đưa superuser.
-# Dùng: ./create-user-admin.sh [tên]   (vd: ./create-user-admin.sh useradmin)
+# Create a USER ADMIN — a role that manages users/DBs (CREATEROLE + CREATEDB) but is NOT a superuser.
+# Used to delegate creating users/granting privileges without handing out superuser.
+# Usage: ./create-user-admin.sh [name]   (e.g.: ./create-user-admin.sh useradmin)
 source "$(cd "$(dirname "$0")" && pwd)/_common.sh"
 
-NAME="${1:-}"; [ -n "$NAME" ] || read -rp "Tên user admin (vd useradmin): " NAME
-role_exists "$NAME" && die "Role '$NAME' đã tồn tại."
+NAME="${1:-}"; [ -n "$NAME" ] || read -rp "User admin name (e.g. useradmin): " NAME
+role_exists "$NAME" && die "Role '$NAME' already exists."
 
-PW="$(prompt_pw "Mật khẩu cho $NAME")"
-[ -n "$PW" ] || die "Mật khẩu rỗng."
+PW="$(prompt_pw "Password for $NAME")"
+[ -n "$PW" ] || die "Password is empty."
 
-# CREATEROLE: tạo/sửa role khác. CREATEDB: tạo database. KHÔNG superuser.
+# CREATEROLE: create/modify other roles. CREATEDB: create databases. NOT a superuser.
 $PSQL -v n="$NAME" -v pw="$PW" <<'SQL'
 CREATE ROLE :"n" LOGIN CREATEROLE CREATEDB PASSWORD :'pw';
 SQL
-echo ">> Đã tạo USER ADMIN (CREATEROLE + CREATEDB, không superuser): $NAME"
+echo ">> Created USER ADMIN (CREATEROLE + CREATEDB, not superuser): $NAME"

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Liệt kê role / database / quyền — để kiểm tra ai có quyền gì.
-# Dùng:
-#   ./list-access.sh roles            # danh sách role + thuộc tính
-#   ./list-access.sh dbs              # danh sách database
-#   ./list-access.sh members <group>  # thành viên 1 group role
-#   ./list-access.sh grants <db>      # quyền trên bảng trong 1 db (\dp)
+# List roles / databases / privileges — to check who has what.
+# Usage:
+#   ./list-access.sh roles            # list roles + attributes
+#   ./list-access.sh dbs              # list databases
+#   ./list-access.sh members <group>  # members of a group role
+#   ./list-access.sh grants <db>      # table privileges in a db (\dp)
 source "$(cd "$(dirname "$0")" && pwd)/_common.sh"
 
 CMD="${1:-roles}"
@@ -12,7 +12,7 @@ case "$CMD" in
   roles) $PSQL -c "\du" ;;
   dbs)   $PSQL -c "\l" ;;
   members)
-    G="${2:-}"; [ -n "$G" ] || die "Thiếu tên group."
+    G="${2:-}"; [ -n "$G" ] || die "Missing group name."
     $PSQL -v g="$G" -tA <<'SQL'
 SELECT m.rolname FROM pg_auth_members am
 JOIN pg_roles g ON g.oid=am.roleid
@@ -21,9 +21,9 @@ WHERE g.rolname=:'g' ORDER BY 1;
 SQL
     ;;
   grants)
-    DB="${2:-}"; [ -n "$DB" ] || die "Thiếu tên db."
-    db_exists "$DB" || die "Database '$DB' chưa tồn tại."
+    DB="${2:-}"; [ -n "$DB" ] || die "Missing db name."
+    db_exists "$DB" || die "Database '$DB' does not exist."
     $PSQL -d "$DB" -c "\dp"
     ;;
-  *) die "Lệnh không hợp lệ. Xem hướng dẫn ở đầu file.";;
+  *) die "Invalid command. See the usage at the top of this file.";;
 esac
