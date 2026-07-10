@@ -47,29 +47,7 @@ Khách hàng cần hạ tầng chạy ứng dụng web (React SPA + backend kế
 
 ### 3.1 Sơ đồ tổng thể
 
-```
-        USER (dải WAN 107.118.210.0/24 — air-gap)
-                        │
-                        ▼
-            ╔═══ Proxy-VIP .100 ═══╗          ← Keepalived (VRRP)
-            ║                      ║
-     ax-proxy01 (.98)  ◄──►  ax-proxy02 (.99)   Nginx LB, TLS terminate
-            │      load balance    │
-            ├──────────┬───────────┘
-            ▼          ▼                        LAN 10.1.1.0/24
-     ax-web01 (.101)  ax-web02 (.102)           Win2025 + IIS, app local D:\app
-            │          │
-            │  connection string đa host
-            │  (target_session_attrs=read-write)
-            ▼          ▼
-     ax-db01 (.103)  ax-db02 (.104)  ax-db03 (.105)
-       LEADER        SYNC STANDBY     ASYNC REPLICA
-       PostgreSQL 17 + Patroni + etcd (quorum 3 node)
-                                      └─ /backup: pgBackRest + pg_dump
-
-     nas (.97): Samba — kho source web (deploy theo release)
-     devdb (.90): PostgreSQL 17 standalone — môi trường Dev
-```
+![Sơ đồ kiến trúc tổng thể AX Svr](images/axsvr-architecture.svg)
 
 ### 3.2 Các quyết định kiến trúc chính & lý do
 
@@ -88,6 +66,12 @@ Khách hàng cần hạ tầng chạy ứng dụng web (React SPA + backend kế
 - **Kiểm soát DB 3 lớp:** ufw (chặn theo IP) → pg_hba (xác thực, pin IP per-user) → GRANT (quyền trên từng bảng). Tài khoản `postgres` gốc khóa local-only, quản trị dùng role riêng `dbadmin`.
 
 ---
+
+![Mô hình bảo mật nhiều lớp](images/axsvr-security.svg)
+
+### 3.4 Chiến lược backup & khôi phục dữ liệu
+
+![Chiến lược backup và khôi phục](images/axsvr-backup.svg)
 
 ## 4. Khối lượng công việc đã hoàn thành
 
@@ -118,6 +102,8 @@ Khách hàng cần hạ tầng chạy ứng dụng web (React SPA + backend kế
 | Quản lý version | Git repo riêng (private), tag **v1.0.0** |
 
 ### 4.3 Kết quả kiểm thử HA (theo checklist nghiệm thu)
+
+![Kịch bản failover cụm PostgreSQL](images/axsvr-db-failover.svg)
 
 - Tắt node DB leader → cụm tự bầu leader mới **< 30 giây**, ứng dụng ghi tiếp bình thường; node cũ bật lại tự rejoin thành replica.
 - Tắt proxy chính → VIP chuyển sang proxy phụ **< 3 giây**, user không gián đoạn.

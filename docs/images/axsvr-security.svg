@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" font-family="DejaVu Sans, Segoe UI, Arial, sans-serif">
+  <defs>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#1A2423" flood-opacity="0.13"/>
+    </filter>
+    <marker id="arg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#146B63"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="620" fill="#FFFFFF"/>
+
+  <text x="60" y="46" font-size="22" font-weight="bold" fill="#1A2423">Mô hình bảo mật — tách mạng &amp; kiểm soát nhiều lớp</text>
+  <text x="60" y="70" font-size="13" fill="#5A6B68">Môi trường air-gap · chỉ quản trị viên được truy cập remote · dịch vụ nội bộ chỉ bind LAN</text>
+  <rect x="60" y="82" width="64" height="4" fill="#146B63"/>
+
+  <!-- Left: network zones -->
+  <text x="60" y="128" font-size="12" font-weight="bold" fill="#146B63" letter-spacing="2">HAI DẢI MẠNG TÁCH BIỆT</text>
+
+  <rect x="60" y="145" width="520" height="150" rx="12" fill="#FDF8F3" stroke="#B4632A" stroke-width="1.4"/>
+  <text x="84" y="175" font-size="13" font-weight="bold" fill="#B4632A">WAN · 107.118.210.0/24 — dải NGƯỜI DÙNG (air-gap)</text>
+  <text x="84" y="200" font-size="11.5" fill="#1A2423">• User chỉ chạm được <tspan font-weight="bold">Proxy-VIP :443/80</tspan> — không thấy web/DB/NAS</text>
+  <text x="84" y="222" font-size="11.5" fill="#1A2423">• SSH/RDP quản trị: <tspan font-weight="bold">chỉ mở cho IP admin</tspan> (ufw + Windows Firewall)</text>
+  <text x="84" y="244" font-size="11.5" fill="#1A2423">• Không kết nối Internet — loại trừ tấn công từ bên ngoài</text>
+  <text x="84" y="272" font-size="10.5" fill="#5A6B68" font-family="DejaVu Sans Mono, monospace">apply-firewall.sh &lt;role&gt; &lt;admin-ip&gt; · apply-firewall-windows.ps1</text>
+
+  <rect x="60" y="320" width="520" height="150" rx="12" fill="#F0F6F5" stroke="#146B63" stroke-width="1.4"/>
+  <text x="84" y="350" font-size="13" font-weight="bold" fill="#146B63">LAN · 10.1.1.0/24 — dải NỘI BỘ</text>
+  <text x="84" y="375" font-size="11.5" fill="#1A2423">• Proxy↔Web, Web↔DB, replication, backup, giám sát</text>
+  <text x="84" y="397" font-size="11.5" fill="#1A2423">• PostgreSQL / etcd / Patroni / Samba <tspan font-weight="bold">chỉ bind LAN</tspan></text>
+  <text x="84" y="419" font-size="11.5" fill="#1A2423">• Dải user không định tuyến được vào các dịch vụ này</text>
+  <text x="84" y="447" font-size="10.5" fill="#5A6B68">TLS terminate tại Nginx — chứng chỉ CA nội bộ, quản lý tập trung</text>
+
+  <!-- Right: 3-layer DB access -->
+  <text x="650" y="128" font-size="12" font-weight="bold" fill="#146B63" letter-spacing="2">3 LỚP KIỂM SOÁT TRUY CẬP DATABASE</text>
+
+  <g filter="url(#sh)">
+    <rect x="650" y="145" width="490" height="92" rx="10" fill="#FFFFFF" stroke="#146B63" stroke-width="1.6"/>
+  </g>
+  <rect x="650" y="145" width="8" height="92" rx="4" fill="#146B63"/>
+  <circle cx="694" cy="191" r="20" fill="#E3EFED"/>
+  <text x="694" y="197" font-size="15" font-weight="bold" fill="#146B63" text-anchor="middle">1</text>
+  <text x="730" y="178" font-size="14" font-weight="bold" fill="#1A2423">ufw — lớp MẠNG</text>
+  <text x="730" y="200" font-size="11.5" fill="#5A6B68">Chặn theo IP nguồn: chỉ dải web + IP admin được chạm port 5432</text>
+  <text x="730" y="220" font-size="11.5" fill="#5A6B68">Kẻ lạ bị chặn từ ngoài cùng, chưa tới được PostgreSQL</text>
+
+  <line x1="895" y1="237" x2="895" y2="263" stroke="#146B63" stroke-width="1.8" marker-end="url(#arg)"/>
+
+  <g filter="url(#sh)">
+    <rect x="650" y="267" width="490" height="92" rx="10" fill="#FFFFFF" stroke="#146B63" stroke-width="1.6"/>
+  </g>
+  <rect x="650" y="267" width="8" height="92" rx="4" fill="#146B63"/>
+  <circle cx="694" cy="313" r="20" fill="#E3EFED"/>
+  <text x="694" y="319" font-size="15" font-weight="bold" fill="#146B63" text-anchor="middle">2</text>
+  <text x="730" y="300" font-size="14" font-weight="bold" fill="#1A2423">pg_hba — lớp XÁC THỰC</text>
+  <text x="730" y="322" font-size="11.5" fill="#5A6B68">Mật khẩu scram-sha-256 · pin IP theo từng user (kiểu user@host)</text>
+  <text x="730" y="342" font-size="11.5" fill="#5A6B68">Tài khoản postgres khóa local-only · DBA dùng role dbadmin</text>
+
+  <line x1="895" y1="359" x2="895" y2="385" stroke="#146B63" stroke-width="1.8" marker-end="url(#arg)"/>
+
+  <g filter="url(#sh)">
+    <rect x="650" y="389" width="490" height="92" rx="10" fill="#FFFFFF" stroke="#146B63" stroke-width="1.6"/>
+  </g>
+  <rect x="650" y="389" width="8" height="92" rx="4" fill="#146B63"/>
+  <circle cx="694" cy="435" r="20" fill="#E3EFED"/>
+  <text x="694" y="441" font-size="15" font-weight="bold" fill="#146B63" text-anchor="middle">3</text>
+  <text x="730" y="422" font-size="14" font-weight="bold" fill="#1A2423">GRANT — lớp PHÂN QUYỀN</text>
+  <text x="730" y="444" font-size="11.5" fill="#5A6B68">Quyền tối thiểu trên từng bảng theo nhóm role (đọc / ghi / quản trị)</text>
+  <text x="730" y="464" font-size="11.5" fill="#5A6B68">Quản trị bằng bộ db-scripts (14 scripts) — nhất quán, không thao tác tay</text>
+
+  <!-- bottom banner -->
+  <rect x="60" y="510" width="1080" height="66" rx="10" fill="#146B63"/>
+  <text x="600" y="538" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">Vượt lớp 1 phải có IP hợp lệ · vượt lớp 2 phải có mật khẩu đúng từ đúng IP · lớp 3 giới hạn thiệt hại còn lại</text>
+  <text x="600" y="560" font-size="11.5" fill="#D8ECE9" text-anchor="middle">Nguyên tắc quyền tối thiểu (least privilege) áp dụng xuyên suốt từ mạng đến từng bảng dữ liệu</text>
+</svg>

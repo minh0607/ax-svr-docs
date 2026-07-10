@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" font-family="DejaVu Sans, Segoe UI, Arial, sans-serif">
+  <defs>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#1A2423" flood-opacity="0.13"/>
+    </filter>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5A6B68"/>
+    </marker>
+    <marker id="arg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#146B63"/>
+    </marker>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#A63D2F"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="660" fill="#FFFFFF"/>
+
+  <text x="60" y="46" font-size="22" font-weight="bold" fill="#1A2423">Tự động failover cụm PostgreSQL (Patroni + etcd)</text>
+  <text x="60" y="70" font-size="13" fill="#5A6B68">Kịch bản đã kiểm thử thực tế: tắt node leader — hệ thống tự phục hồi, không mất dữ liệu</text>
+  <rect x="60" y="82" width="64" height="4" fill="#146B63"/>
+
+  <!-- PANEL 1: normal -->
+  <rect x="60" y="110" width="520" height="470" rx="14" fill="#F0F6F5"/>
+  <text x="86" y="140" font-size="12" font-weight="bold" fill="#146B63" letter-spacing="2">① VẬN HÀNH BÌNH THƯỜNG</text>
+
+  <rect x="150" y="160" width="340" height="52" rx="10" fill="#FFFFFF" stroke="#5A6B68" stroke-width="1.4" stroke-dasharray="6 4"/>
+  <text x="320" y="182" font-size="13" font-weight="bold" fill="#1A2423" text-anchor="middle">ỨNG DỤNG (2 web IIS)</text>
+  <text x="320" y="201" font-size="11" fill="#5A6B68" text-anchor="middle" font-family="DejaVu Sans Mono, monospace">host=.103,.104,.105 read-write</text>
+
+  <line x1="320" y1="212" x2="320" y2="252" stroke="#146B63" stroke-width="2" marker-end="url(#arg)"/>
+  <text x="332" y="238" font-size="11" fill="#146B63" font-weight="bold">ghi / đọc</text>
+
+  <g filter="url(#sh)">
+    <rect x="200" y="256" width="240" height="76" rx="10" fill="#FFFFFF" stroke="#146B63" stroke-width="2"/>
+  </g>
+  <text x="320" y="286" font-size="15" font-weight="bold" fill="#1A2423" text-anchor="middle">ax-db01 · .103</text>
+  <rect x="285" y="298" width="70" height="20" rx="10" fill="#146B63"/>
+  <text x="320" y="312" font-size="10.5" font-weight="bold" fill="#FFFFFF" text-anchor="middle">LEADER</text>
+
+  <line x1="250" y1="332" x2="185" y2="420" stroke="#146B63" stroke-width="1.6" marker-end="url(#arg)"/>
+  <text x="180" y="378" font-size="10.5" fill="#146B63" font-weight="bold" text-anchor="end">sync</text>
+  <line x1="390" y1="332" x2="455" y2="420" stroke="#146B63" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#arg)"/>
+  <text x="460" y="378" font-size="10.5" fill="#146B63" font-weight="bold">async</text>
+
+  <g filter="url(#sh)">
+    <rect x="90" y="424" width="220" height="76" rx="10" fill="#FFFFFF" stroke="#146B63" stroke-width="1.6"/>
+    <rect x="340" y="424" width="220" height="76" rx="10" fill="#FFFFFF" stroke="#146B63" stroke-width="1.6"/>
+  </g>
+  <text x="200" y="454" font-size="14" font-weight="bold" fill="#1A2423" text-anchor="middle">ax-db02 · .104</text>
+  <rect x="141" y="466" width="118" height="20" rx="10" fill="#2F7D4F"/>
+  <text x="200" y="480" font-size="10.5" font-weight="bold" fill="#FFFFFF" text-anchor="middle">SYNC STANDBY</text>
+  <text x="450" y="454" font-size="14" font-weight="bold" fill="#1A2423" text-anchor="middle">ax-db03 · .105</text>
+  <rect x="391" y="466" width="118" height="20" rx="10" fill="#E3EFED"/>
+  <text x="450" y="480" font-size="10.5" font-weight="bold" fill="#146B63" text-anchor="middle">ASYNC REPLICA</text>
+
+  <text x="320" y="545" font-size="11.5" fill="#5A6B68" text-anchor="middle">etcd 3 node giữ quorum — mọi thay đổi leader phải được đa số đồng thuận</text>
+
+  <!-- ARROW between panels -->
+  <line x1="590" y1="345" x2="640" y2="345" stroke="#A63D2F" stroke-width="2.5" marker-end="url(#arr)"/>
+  <text x="615" y="330" font-size="11" font-weight="bold" fill="#A63D2F" text-anchor="middle">SỰ CỐ</text>
+
+  <!-- PANEL 2: failover -->
+  <rect x="650" y="110" width="520" height="470" rx="14" fill="#FDF3F1"/>
+  <text x="676" y="140" font-size="12" font-weight="bold" fill="#A63D2F" letter-spacing="2">② ax-db01 GẶP SỰ CỐ — TỰ PHỤC HỒI &lt; 30 GIÂY</text>
+
+  <rect x="740" y="160" width="340" height="52" rx="10" fill="#FFFFFF" stroke="#5A6B68" stroke-width="1.4" stroke-dasharray="6 4"/>
+  <text x="910" y="182" font-size="13" font-weight="bold" fill="#1A2423" text-anchor="middle">ỨNG DỤNG (2 web IIS)</text>
+  <text x="910" y="201" font-size="11" fill="#5A6B68" text-anchor="middle">tự dò node read-write mới — không đổi cấu hình</text>
+
+  <path d="M 910 212 C 910 232, 800 236, 792 252" fill="none" stroke="#146B63" stroke-width="2" marker-end="url(#arg)"/>
+  <text x="922" y="238" font-size="11" fill="#146B63" font-weight="bold">ghi / đọc</text>
+
+  <!-- dead db01 -->
+  <rect x="680" y="424" width="220" height="76" rx="10" fill="#FFFFFF" stroke="#A63D2F" stroke-width="1.6" stroke-dasharray="6 4" opacity="0.85"/>
+  <text x="790" y="454" font-size="14" font-weight="bold" fill="#A63D2F" text-anchor="middle">ax-db01 · .103</text>
+  <rect x="750" y="466" width="80" height="20" rx="10" fill="#A63D2F"/>
+  <text x="790" y="480" font-size="10.5" font-weight="bold" fill="#FFFFFF" text-anchor="middle">DOWN ✕</text>
+  <line x1="700" y1="434" x2="880" y2="490" stroke="#A63D2F" stroke-width="2" stroke-opacity="0.45"/>
+  <line x1="880" y1="434" x2="700" y2="490" stroke="#A63D2F" stroke-width="2" stroke-opacity="0.45"/>
+
+  <!-- promoted db02 -->
+  <g filter="url(#sh)">
+    <rect x="670" y="256" width="240" height="76" rx="10" fill="#FFFFFF" stroke="#2F7D4F" stroke-width="2.2"/>
+  </g>
+  <text x="790" y="286" font-size="15" font-weight="bold" fill="#1A2423" text-anchor="middle">ax-db02 · .104</text>
+  <rect x="722" y="298" width="136" height="20" rx="10" fill="#2F7D4F"/>
+  <text x="790" y="312" font-size="10.5" font-weight="bold" fill="#FFFFFF" text-anchor="middle">LEADER MỚI ↑</text>
+
+  <!-- db03 -->
+  <g filter="url(#sh)">
+    <rect x="930" y="424" width="220" height="76" rx="10" fill="#FFFFFF" stroke="#146B63" stroke-width="1.6"/>
+  </g>
+  <text x="1040" y="454" font-size="14" font-weight="bold" fill="#1A2423" text-anchor="middle">ax-db03 · .105</text>
+  <rect x="981" y="466" width="118" height="20" rx="10" fill="#E3EFED"/>
+  <text x="1040" y="480" font-size="10.5" font-weight="bold" fill="#146B63" text-anchor="middle">REPLICA</text>
+  <line x1="905" y1="332" x2="1005" y2="420" stroke="#146B63" stroke-width="1.6" marker-end="url(#arg)"/>
+  <text x="975" y="372" font-size="10.5" fill="#146B63" font-weight="bold">replication</text>
+
+  <text x="910" y="545" font-size="11.5" fill="#5A6B68" text-anchor="middle">etcd bầu leader mới theo quorum · db01 bật lại sẽ tự rejoin thành replica</text>
+
+  <!-- bottom stats -->
+  <rect x="60" y="600" width="253" height="40" rx="8" fill="#E3EFED"/>
+  <text x="186" y="625" font-size="12.5" fill="#146B63" text-anchor="middle" font-weight="bold">Thời gian failover: &lt; 30 giây</text>
+  <rect x="333" y="600" width="253" height="40" rx="8" fill="#E3EFED"/>
+  <text x="459" y="625" font-size="12.5" fill="#146B63" text-anchor="middle" font-weight="bold">Mất dữ liệu (RPO): 0 — nhờ sync standby</text>
+  <rect x="606" y="600" width="253" height="40" rx="8" fill="#E3EFED"/>
+  <text x="732" y="625" font-size="12.5" fill="#146B63" text-anchor="middle" font-weight="bold">Can thiệp thủ công: không cần</text>
+  <rect x="879" y="600" width="253" height="40" rx="8" fill="#E3EFED"/>
+  <text x="1005" y="625" font-size="12.5" fill="#146B63" text-anchor="middle" font-weight="bold">Ứng dụng: giữ nguyên cấu hình</text>
+</svg>
