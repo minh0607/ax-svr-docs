@@ -18,7 +18,7 @@ Dự án AX Svr xây dựng hạ tầng web **High Availability (HA)** hoàn ch�
 
 Khối lượng bàn giao gồm: **hạ tầng 10 VM đã triển khai**, bộ tài liệu vận hành ~2.400 dòng (10 tài liệu phase), bộ công cụ quản trị DB (14 scripts), scripts firewall tự động theo vai trò, và công cụ tạo ISO cài đặt tự động. Toàn bộ được quản lý version trên Git (tag v1.0.0).
 
-**Đề xuất tiếp theo:** tích hợp giám sát vào hệ thống **Zabbix/Grafana sẵn có** của công ty (không dựng node monitoring riêng), bổ sung backup off-site để hoàn thiện chuẩn 3-2-1, và thiết lập lịch diễn tập failover/khôi phục định kỳ.
+**Trong cùng phạm vi dự án (thực hiện trọn một giai đoạn, không tách giai đoạn 2):** tích hợp giám sát vào hệ thống **Zabbix/Grafana sẵn có** của công ty (không dựng node monitoring riêng), bổ sung backup off-site để hoàn thiện chuẩn 3-2-1, và thiết lập lịch diễn tập failover/khôi phục định kỳ.
 
 ---
 
@@ -126,7 +126,7 @@ Khách hàng cần hạ tầng chạy ứng dụng web (React SPA + backend kế
 
 | # | Rủi ro / giới hạn | Mức độ | Hướng xử lý |
 |---|---|---|---|
-| 1 | Backup đang nằm trên DB3 — cùng cụm với dữ liệu chính. Thảm họa mất cả cụm (cháy, hỏng storage ảo hóa) sẽ mất cả backup | **Cao** | Bổ sung backup off-site (site khác/đĩa rời — air-gap không dùng được cloud) → hoàn thiện chuẩn 3-2-1. Tài liệu đã viết sẵn (Phase 5b) |
+| 1 | Backup đang nằm trên DB3 — cùng cụm với dữ liệu chính. Thảm họa mất cả cụm (cháy, hỏng storage ảo hóa) sẽ mất cả backup | **Cao** | Bổ sung backup off-site (site khác/đĩa rời — air-gap không dùng được cloud) → hoàn thiện chuẩn 3-2-1. Tài liệu đã viết sẵn (`axsvr-backup-offsite.md`) |
 | 2 | Chưa có giám sát/cảnh báo tập trung — sự cố 1 node (hệ thống vẫn chạy nhờ HA) có thể không ai biết, đến khi node thứ 2 hỏng mới lộ | **Cao** | Tích hợp Zabbix/Grafana sẵn có (mục 7.1) |
 | 3 | HA chỉ đúng khi VM cùng vai trò nằm **khác host vật lý** (anti-affinity) | Trung bình | Xác nhận cấu hình anti-affinity trên tầng ảo hóa |
 | 4 | Chứng chỉ TLS dùng CA nội bộ — cần quy trình gia hạn/phân phối CA cho client | Trung bình | Đưa vào quy trình vận hành định kỳ |
@@ -134,7 +134,9 @@ Khách hàng cần hạ tầng chạy ứng dụng web (React SPA + backend kế
 
 ---
 
-## 7. Đề xuất giai đoạn tiếp theo
+## 7. Hạng mục hoàn thiện — trọn gói trong một giai đoạn
+
+Các hạng mục dưới đây thuộc **cùng một phạm vi dự án**, thực hiện gọn trong **một đợt duy nhất** (không tách thành giai đoạn 2) để đạt độ an toàn và vận hành trọn vẹn:
 
 ### 7.1 Tích hợp giám sát vào Zabbix/Grafana sẵn có *(ưu tiên cao)*
 Không dựng node monitoring riêng; tận dụng hạ tầng giám sát công ty đang vận hành:
@@ -151,12 +153,13 @@ Triển khai repo2 pgBackRest sang site khác qua SSH (hoặc quy trình đĩa r
 - Kiểm tra `pgbackrest info`, dung lượng đĩa, hạn chứng chỉ: hằng tuần (đưa vào cảnh báo tự động sau 7.1).
 - Cập nhật bảo mật OS qua mirror APT offline: theo chu kỳ công ty quy định.
 
-### 7.4 Nguồn lực đề xuất
+### 7.4 Nguồn lực để hoàn tất (trong một giai đoạn)
 | Hạng mục | Ước lượng |
 |---|---|
 | Tích hợp Zabbix/Grafana (7.1) | 3–5 ngày công |
 | Backup off-site (7.2) | 2–3 ngày công + hạ tầng site phụ/đĩa rời |
 | Soạn lịch & chạy diễn tập lần đầu (7.3) | 1–2 ngày công |
+| **Tổng** | **~6–10 ngày công, làm gọn một đợt** |
 
 ---
 
@@ -166,7 +169,7 @@ Hạ tầng AX Svr đã được triển khai hoàn chỉnh, đạt các mục t
 
 Kính đề nghị quản lý:
 1. **Ghi nhận nghiệm thu** khối lượng công việc đã hoàn thành (mục 4).
-2. **Phê duyệt** triển khai giai đoạn tiếp theo (mục 7) với ước lượng nguồn lực kèm theo.
+2. **Phê duyệt hoàn tất** các hạng mục còn lại (mục 7) — thực hiện **trọn trong một giai đoạn**, tổng ~6–10 ngày công.
 
 ---
 
@@ -195,7 +198,7 @@ Kính đề nghị quản lý:
 | 3 | axsvr-phase3-web-iis.md | Web Win2025 + IIS |
 | 4 | axsvr-phase4-proxy.md | Proxy HA (Nginx + Keepalived/VIP) |
 | 5 | axsvr-phase5-backup.md | Backup pgBackRest + pg_dump, PITR |
-| 5b | axsvr-backup-offsite.md | Off-site backup (3-2-1) — *chưa triển khai, đề xuất* |
+| 5b | axsvr-backup-offsite.md | Off-site backup (3-2-1) — *thuộc phạm vi, chưa triển khai* |
 | 6 | axsvr-phase6-monitoring.md | Monitoring (tham khảo; thay bằng tích hợp Zabbix/Grafana) |
 | Dev | axsvr-devdb-setup.md | DevDB standalone |
 | Tool | axsvr-autoinstall.md + autoinstall/ | Autoinstall Ubuntu 24.04 (seed ISO) |

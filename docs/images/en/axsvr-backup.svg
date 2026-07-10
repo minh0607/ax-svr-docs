@@ -18,8 +18,8 @@
   <image x="990" y="22" width="150" height="37" href="data:image/png;base64,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" preserveAspectRatio="xMaxYMid meet" aria-label="SEHC INFRA logo"/>
 
 
-  <text x="60" y="46" font-size="22" font-weight="bold" fill="#1A2230">Chiến lược backup &amp; khôi phục dữ liệu</text>
-  <text x="60" y="70" font-size="13" fill="#5A6676">pgBackRest (vật lý, PITR) + pg_dump (logic) — repo trên đĩa riêng /backup của ax-db03</text>
+  <text x="60" y="46" font-size="22" font-weight="bold" fill="#1A2230">Backup &amp; data recovery strategy</text>
+  <text x="60" y="70" font-size="13" fill="#5A6676">pgBackRest (physical, PITR) + pg_dump (logical) — repo on ax-db03's dedicated /backup disk</text>
   <rect x="60" y="82" width="64" height="4" fill="#0071BC"/>
 
   <!-- Sources -->
@@ -29,11 +29,11 @@
   </g>
   <text x="80" y="162" font-size="15" font-weight="bold" fill="#1A2230">ax-db01 · LEADER</text>
   <text x="80" y="184" font-size="12" fill="#5A6676" font-family="DejaVu Sans Mono, monospace">.103 · /data</text>
-  <text x="80" y="205" font-size="11" fill="#5A6676">archive_command đẩy WAL liên tục</text>
+  <text x="80" y="205" font-size="11" fill="#5A6676">archive_command ships WAL continuously</text>
 
   <text x="80" y="282" font-size="15" font-weight="bold" fill="#1A2230">ax-db02 · SYNC</text>
   <text x="80" y="304" font-size="12" fill="#5A6676" font-family="DejaVu Sans Mono, monospace">.104 · /data</text>
-  <text x="80" y="325" font-size="11" fill="#5A6676">sẵn sàng đẩy WAL khi thành leader</text>
+  <text x="80" y="325" font-size="11" fill="#5A6676">ready to ship WAL once it becomes leader</text>
 
   <!-- WAL arrows -->
   <line x1="304" y1="175" x2="438" y2="215" stroke="#0071BC" stroke-width="2" marker-end="url(#arg)"/>
@@ -46,39 +46,39 @@
   </g>
   <rect x="442" y="130" width="330" height="44" rx="12" fill="#0071BC"/>
   <rect x="442" y="160" width="330" height="14" fill="#0071BC"/>
-  <text x="607" y="158" font-size="15" font-weight="bold" fill="#FFFFFF" text-anchor="middle">ax-db03 — repo backup /backup</text>
+  <text x="607" y="158" font-size="15" font-weight="bold" fill="#FFFFFF" text-anchor="middle">ax-db03 — backup repo /backup</text>
   <text x="466" y="200" font-size="12.5" fill="#1A2230" font-family="DejaVu Sans Mono, monospace">pgBackRest repo1</text>
-  <text x="466" y="222" font-size="11.5" fill="#5A6676">• đĩa riêng, tách khỏi /data</text>
-  <text x="466" y="242" font-size="11.5" fill="#5A6676">• giữ nhiều bộ full + chuỗi WAL đầy đủ</text>
-  <text x="466" y="262" font-size="11.5" fill="#5A6676">• kèm pg_dump logic backup hằng ngày</text>
+  <text x="466" y="222" font-size="11.5" fill="#5A6676">• dedicated disk, separate from /data</text>
+  <text x="466" y="242" font-size="11.5" fill="#5A6676">• keeps multiple fulls + complete WAL chain</text>
+  <text x="466" y="262" font-size="11.5" fill="#5A6676">• plus daily pg_dump logical backup</text>
   <rect x="466" y="280" width="282" height="60" rx="8" fill="#EDF4FB"/>
-  <text x="480" y="302" font-size="11.5" fill="#0071BC" font-weight="bold">LỊCH TỰ ĐỘNG (cron)</text>
-  <text x="480" y="322" font-size="11" fill="#5A6676">Full: Chủ nhật · Diff: hằng ngày · WAL: liên tục</text>
+  <text x="480" y="302" font-size="11.5" fill="#0071BC" font-weight="bold">AUTOMATED SCHEDULE (cron)</text>
+  <text x="480" y="322" font-size="11" fill="#5A6676">Full: Sunday · Diff: daily · WAL: continuous</text>
 
   <!-- PITR -->
   <g filter="url(#sh)">
     <rect x="860" y="130" width="280" height="110" rx="10" fill="#E1EFF8"/>
   </g>
-  <text x="880" y="162" font-size="14" font-weight="bold" fill="#0071BC">KHÔI PHỤC PITR</text>
-  <text x="880" y="186" font-size="11.5" fill="#1A2230">Quay về đúng thời điểm bất kỳ</text>
-  <text x="880" y="206" font-size="11.5" fill="#1A2230">(trước lúc xóa nhầm / lỗi logic)</text>
-  <text x="880" y="228" font-size="11" fill="#2F7D4F" font-weight="bold">✓ đã diễn tập thành công</text>
+  <text x="880" y="162" font-size="14" font-weight="bold" fill="#0071BC">PITR RECOVERY</text>
+  <text x="880" y="186" font-size="11.5" fill="#1A2230">Roll back to any point in time</text>
+  <text x="880" y="206" font-size="11.5" fill="#1A2230">(before an accidental delete / logic error)</text>
+  <text x="880" y="228" font-size="11" fill="#2F7D4F" font-weight="bold">✓ recovery drill passed</text>
   <line x1="776" y1="185" x2="856" y2="185" stroke="#0071BC" stroke-width="2" marker-end="url(#arg)"/>
 
   <!-- Offsite proposed -->
   <rect x="860" y="270" width="280" height="90" rx="10" fill="#FFF7F0" stroke="#B4632A" stroke-width="1.5" stroke-dasharray="6 4"/>
   <text x="880" y="300" font-size="14" font-weight="bold" fill="#1A2230">Off-site repo2</text>
-  <text x="880" y="321" font-size="11.5" fill="#5A6676">site khác / đĩa rời (air-gap — không cloud)</text>
+  <text x="880" y="321" font-size="11.5" fill="#5A6676">other site / removable disk (air-gap — no cloud)</text>
   <rect x="880" y="330" width="106" height="18" rx="9" fill="#B4632A"/>
-  <text x="933" y="343" font-size="10" font-weight="bold" fill="#FFFFFF" text-anchor="middle">TRONG PHẠM VI</text>
+  <text x="933" y="343" font-size="10" font-weight="bold" fill="#FFFFFF" text-anchor="middle">IN SCOPE</text>
   <line x1="776" y1="315" x2="856" y2="315" stroke="#B4632A" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#arw)"/>
 
   <!-- Retention timeline -->
-  <text x="60" y="420" font-size="12" font-weight="bold" fill="#0071BC" letter-spacing="2">NHỊP BẢO VỆ DỮ LIỆU TRONG TUẦN</text>
+  <text x="60" y="420" font-size="12" font-weight="bold" fill="#0071BC" letter-spacing="2">DATA-PROTECTION RHYTHM ACROSS THE WEEK</text>
   <line x1="60" y1="470" x2="1140" y2="470" stroke="#D7DFE8" stroke-width="2"/>
   <g font-size="11" fill="#5A6676" text-anchor="middle">
-    <text x="130" y="500">CN</text><text x="270" y="500">T2</text><text x="410" y="500">T3</text>
-    <text x="550" y="500">T4</text><text x="690" y="500">T5</text><text x="830" y="500">T6</text><text x="970" y="500">T7</text>
+    <text x="130" y="500">Sun</text><text x="270" y="500">Mon</text><text x="410" y="500">Tue</text>
+    <text x="550" y="500">Wed</text><text x="690" y="500">Thu</text><text x="830" y="500">Fri</text><text x="970" y="500">Sat</text>
   </g>
   <circle cx="130" cy="470" r="14" fill="#0071BC"/>
   <text x="130" y="475" font-size="10" font-weight="bold" fill="#FFFFFF" text-anchor="middle">FULL</text>
@@ -91,16 +91,16 @@
     <text x="690" y="473">DIFF</text><text x="830" y="473">DIFF</text><text x="970" y="473">DIFF</text>
   </g>
   <rect x="116" y="438" width="1010" height="8" rx="4" fill="#E1EFF8"/>
-  <text x="1136" y="431" font-size="10.5" fill="#0071BC" text-anchor="end" font-weight="bold">WAL archive liên tục — mất tối đa vài giây dữ liệu ở kịch bản xấu nhất</text>
+  <text x="1136" y="431" font-size="10.5" fill="#0071BC" text-anchor="end" font-weight="bold">Continuous WAL archive — at most a few seconds of data lost in the worst case</text>
 
   <!-- bottom stats -->
   <rect x="60" y="540" width="340" height="52" rx="8" fill="#E1EFF8"/>
-  <text x="230" y="562" font-size="12" fill="#0071BC" text-anchor="middle" font-weight="bold">2 lớp bảo vệ</text>
-  <text x="230" y="580" font-size="10.5" fill="#5A6676" text-anchor="middle">sync replica (hỏng máy) + backup PITR (lỗi logic)</text>
+  <text x="230" y="562" font-size="12" fill="#0071BC" text-anchor="middle" font-weight="bold">2 protection layers</text>
+  <text x="230" y="580" font-size="10.5" fill="#5A6676" text-anchor="middle">sync replica (hardware) + PITR backup (logic error)</text>
   <rect x="430" y="540" width="340" height="52" rx="8" fill="#E1EFF8"/>
-  <text x="600" y="562" font-size="12" fill="#0071BC" text-anchor="middle" font-weight="bold">Điểm khôi phục</text>
-  <text x="600" y="580" font-size="10.5" fill="#5A6676" text-anchor="middle">bất kỳ thời điểm nào trong chu kỳ lưu trữ</text>
+  <text x="600" y="562" font-size="12" fill="#0071BC" text-anchor="middle" font-weight="bold">Recovery point</text>
+  <text x="600" y="580" font-size="10.5" fill="#5A6676" text-anchor="middle">any moment within the retention window</text>
   <rect x="800" y="540" width="340" height="52" rx="8" fill="#FFF7F0"/>
-  <text x="970" y="562" font-size="12" fill="#B4632A" text-anchor="middle" font-weight="bold">Cần hoàn thiện: 3-2-1</text>
-  <text x="970" y="580" font-size="10.5" fill="#5A6676" text-anchor="middle">bổ sung bản off-site (trong phạm vi dự án)</text>
+  <text x="970" y="562" font-size="12" fill="#B4632A" text-anchor="middle" font-weight="bold">To complete: 3-2-1</text>
+  <text x="970" y="580" font-size="10.5" fill="#5A6676" text-anchor="middle">add an off-site copy (within project scope)</text>
 </svg>
