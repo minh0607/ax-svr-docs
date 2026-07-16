@@ -140,6 +140,59 @@ SQL
   echo "   NOTE: application code referencing the old name must be updated."
 }
 
+cmd_rename_schema() {           # <db> <old> <new>
+  local d="${1:-}" o="${2:-}" n="${3:-}"
+  [ -n "$d" ] && [ -n "$o" ] && [ -n "$n" ] || die "Usage: axdb.sh rename-schema <db> <old> <new>"
+  db_exists "$d" || die "Database '$d' does not exist."
+  case "$o" in public|information_schema|pg_*) die "'$o' is a protected schema.";; esac
+  case "$n" in *.*) die "New schema name must not contain a dot.";; esac
+  [ "$($PSQL -d "$d" -tAc "SELECT count(*) FROM information_schema.schemata WHERE schema_name='$o'")" = "1" ] \
+    || die "Schema '$o' does not exist in '$d'."
+  [ "$($PSQL -d "$d" -tAc "SELECT count(*) FROM information_schema.schemata WHERE schema_name='$n'")" = "0" ] \
+    || die "Schema '$n' already exists in '$d'."
+
+  # 1. rename the schema
+  $PSQL -d "$d" -v o="$o" -v n="$n" <<'SQL'
+ALTER SCHEMA :"o" RENAME TO :"n";
+SQL
+  echo ">> Renamed schema $o -> $n (db: $d)"
+
+  # 2. keep the group-naming convention: <schema>_readonly / <schema>_readwrite
+  local sfx og ng
+  for sfx in readonly readwrite; do
+    og="${o}_${sfx}"; ng="${n}_${sfx}"
+    if role_exists "$og"; then
+      if role_exists "$ng"; then
+        echo "   WARNING: group '$ng' already exists — left '$og' untouched."
+      else
+        $PSQL -v og="$og" -v ng="$ng" <<'SQL'
+ALTER ROLE :"og" RENAME TO :"ng";
+SQL
+        echo "   group renamed: $og -> $ng"
+      fi
+    fi
+  done
+
+  # 3. patch search_path of roles still pointing at the old schema name
+  local roles r cur new_sp
+  roles="$($PSQL -tAc "SELECT rolname FROM pg_roles WHERE rolconfig::text LIKE '%search_path%' AND rolconfig::text LIKE '%${o}%'")"
+  for r in $roles; do
+    cur="$($PSQL -tAc "SELECT c FROM pg_roles, unnest(rolconfig) c WHERE rolname='$r' AND c LIKE 'search_path=%'")"
+    [ -n "$cur" ] || continue
+    # Replace ONLY whole tokens: the quoted form (what set-search-path writes) and a
+    # delimiter-bounded bare form. A plain substring replace would corrupt names that
+    # merely contain the old name (e.g. renaming "finance" must not touch "myfinance").
+    new_sp="$(printf '%s' "${cur#search_path=}" \
+      | sed -E "s/\"${o}\"/\"${n}\"/g; s/(^|[[:space:],])${o}([[:space:],]|\$)/\1${n}\2/g")"
+    $PSQL -v r="$r" <<SQL
+ALTER ROLE :"r" SET search_path = $new_sp;
+SQL
+    echo "   search_path patched for role $r -> $new_sp"
+    case "$new_sp" in *"$o"*) echo "   WARNING: role $r search_path still mentions '$o' — check manually: $new_sp";; esac
+  done
+  echo "   NOTE: application code hard-coding the old schema name must be updated."
+}
+
 cmd_drop_schema() {             # <db> <schema> [--cascade]
   local d="${1:-}" s="${2:-}" mode="${3:-}"
   [ -n "$d" ] && [ -n "$s" ] || die "Usage: axdb.sh drop-schema <db> <schema> [--cascade]"
@@ -624,6 +677,7 @@ axdb.sh — PostgreSQL administration (AX Svr)
   set-db-owner <db> <owner>                   Change database owner
   set-schema  <db> <table> <schema>           Move a table into a schema (table name unchanged)
   rename-table <db> <table> <new_name>        Rename a table (schema unchanged; new name must be bare)
+  rename-schema <db> <old> <new>              Rename a schema + its <name>_readonly/_readwrite groups + patch role search_path
   drop-schema <db> <schema> [--cascade]       Drop a schema (RESTRICT by default; re-type to confirm)
   passwd <role>                               Change password (reset password)
   drop-user <user> [reassign_to=dbadmin]      Drop user safely
@@ -750,6 +804,7 @@ case "$cmd" in
   set-owner)          cmd_set_owner "$@";;
   set-schema)         cmd_set_schema "$@";;
   rename-table)       cmd_rename_table "$@";;
+  rename-schema)      cmd_rename_schema "$@";;
   drop-schema)        cmd_drop_schema "$@";;
   set-db-owner)       cmd_set_db_owner "$@";;
   passwd)             cmd_passwd "$@";;
