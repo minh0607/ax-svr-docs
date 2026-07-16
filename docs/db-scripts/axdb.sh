@@ -174,21 +174,31 @@ SQL
   done
 
   # 3. patch search_path of roles still pointing at the old schema name
-  local roles r cur new_sp
+  local roles r cur cur_val new_sp
   roles="$($PSQL -tAc "SELECT rolname FROM pg_roles WHERE rolconfig::text LIKE '%search_path%' AND rolconfig::text LIKE '%${o}%'")"
   for r in $roles; do
     cur="$($PSQL -tAc "SELECT c FROM pg_roles, unnest(rolconfig) c WHERE rolname='$r' AND c LIKE 'search_path=%'")"
     [ -n "$cur" ] || continue
+    cur_val="${cur#search_path=}"
     # Replace ONLY whole tokens: the quoted form (what set-search-path writes) and a
     # delimiter-bounded bare form. A plain substring replace would corrupt names that
     # merely contain the old name (e.g. renaming "finance" must not touch "myfinance").
-    new_sp="$(printf '%s' "${cur#search_path=}" \
+    new_sp="$(printf '%s' "$cur_val" \
       | sed -E "s/\"${o}\"/\"${n}\"/g; s/(^|[[:space:],])${o}([[:space:],]|\$)/\1${n}\2/g")"
+    # No-op guard: the old name may appear in rolconfig::text (matched by the role
+    # discovery query above) without actually being a token in THIS search_path value
+    # (e.g. it's elsewhere in rolconfig, or already not present here). Skip the ALTER
+    # and log line entirely rather than re-writing an unchanged value.
+    [ "$new_sp" = "$cur_val" ] && continue
     $PSQL -v r="$r" <<SQL
 ALTER ROLE :"r" SET search_path = $new_sp;
 SQL
     echo "   search_path patched for role $r -> $new_sp"
-    case "$new_sp" in *"$o"*) echo "   WARNING: role $r search_path still mentions '$o' — check manually: $new_sp";; esac
+    # Same token-bounded logic as the replacement above: a leftover substring like
+    # "myfinance" must not falsely trigger this warning after renaming "finance".
+    if printf '%s' "$new_sp" | grep -qE "\"${o}\"|(^|[[:space:],])${o}([[:space:],]|\$)"; then
+      echo "   WARNING: role $r search_path still mentions '$o' — check manually: $new_sp"
+    fi
   done
   echo "   NOTE: application code hard-coding the old schema name must be updated."
 }
