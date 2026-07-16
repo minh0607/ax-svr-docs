@@ -537,13 +537,24 @@ _migrate_peruser_hba() {        # <old> <new>
   local ips
   ips="$(sed -n "/^# >>> peruser:$old$/,/^# <<< peruser:$old$/p" "$peruser" \
         | awk -v u="$old" '$1=="host" && $3==u && $5=="scram-sha-256" {printf "%s%s", sep, $4; sep=","}')"
-  sudo sed -i "/^# >>> peruser:$old$/,/^# <<< peruser:$old$/d" "$peruser"
-  if [ -n "$ips" ]; then
-    cmd_bind_ip "$new" "$ips" --file
-    echo "   migrated IP pin: $old -> $new ($ips)"
-  else
+  if [ -z "$ips" ]; then
+    sudo sed -i "/^# >>> peruser:$old$/,/^# <<< peruser:$old$/d" "$peruser"
     echo "   removed stale pin block for '$old' (no allowed IPs found)"
+    return 0
   fi
+  # Re-pin the NEW name FIRST, before touching the old block. If this fails
+  # partway (sudo denied, no TTY, disk full), abort loudly and leave the old
+  # block in place rather than deleting it and risking a lockout / widened access.
+  if ! cmd_bind_ip "$new" "$ips" --file; then
+    echo "   WARNING: failed to re-pin '$new' to $ips."
+    echo "   WARNING: role '$new' is currently UNPINNED (matches only the base pg_hba catch-all)."
+    echo "   WARNING: the old pin block for '$old' was left in place for reference."
+    echo "   WARNING: fix with: ./axdb.sh bind-ip $new $ips --file"
+    return 1
+  fi
+  sudo sed -i "/^# >>> peruser:$old$/,/^# <<< peruser:$old$/d" "$peruser"
+  echo "   migrated IP pin: $old -> $new ($ips)"
+  echo "   NOTE: '$new' was briefly unpinned between the role rename and this re-pin — run this migration promptly."
 }
 
 cmd_rename_user() {             # <old> <new>
