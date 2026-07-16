@@ -162,7 +162,7 @@ Inspect / manage schemas:
 Rename things (each also fixes what depends on the name):
 ```bash
 ./axdb.sh rename-table  appdb finance.fi_cost fi_expense   # table only; schema kept
-./axdb.sh rename-schema appdb finance fin                  # also renames fin_readonly/fin_readwrite + patches role search_path
+./axdb.sh rename-schema appdb finance fin                  # also renames finance_readonly/finance_readwrite -> fin_*; patches role search_path CLUSTER-WIDE (role settings are database-independent, so other databases using a 'finance' schema may be affected — the command warns when it detects this)
 ./axdb.sh rename-user   old_user new_user                  # also migrates the bind-ip pg_hba pin (file mode)
 ```
 Caveat: renaming does NOT update application code / connection strings — update those yourself.

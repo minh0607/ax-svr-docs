@@ -151,6 +151,17 @@ cmd_rename_schema() {           # <db> <old> <new>
   [ "$($PSQL -d "$d" -tAc "SELECT count(*) FROM information_schema.schemata WHERE schema_name='$n'")" = "0" ] \
     || die "Schema '$n' already exists in '$d'."
 
+  # 0. group-collision check BEFORE touching anything. Discovering the collision after
+  #    the ALTER SCHEMA leaves schema '$n' with groups still named '${o}_*', which
+  #    cmd_perm then reports as "$o: RW" for a schema that no longer exists.
+  local sfx og ng
+  for sfx in readonly readwrite; do
+    og="${o}_${sfx}"; ng="${n}_${sfx}"
+    if role_exists "$og" && role_exists "$ng"; then
+      die "Group '$ng' already exists — drop or rename it first. Schema '$o' left untouched."
+    fi
+  done
+
   # 1. rename the schema
   $PSQL -d "$d" -v o="$o" -v n="$n" <<'SQL'
 ALTER SCHEMA :"o" RENAME TO :"n";
@@ -158,22 +169,28 @@ SQL
   echo ">> Renamed schema $o -> $n (db: $d)"
 
   # 2. keep the group-naming convention: <schema>_readonly / <schema>_readwrite
-  local sfx og ng
   for sfx in readonly readwrite; do
     og="${o}_${sfx}"; ng="${n}_${sfx}"
     if role_exists "$og"; then
-      if role_exists "$ng"; then
-        echo "   WARNING: group '$ng' already exists — left '$og' untouched."
-      else
-        $PSQL -v og="$og" -v ng="$ng" <<'SQL'
+      $PSQL -v og="$og" -v ng="$ng" <<'SQL'
 ALTER ROLE :"og" RENAME TO :"ng";
 SQL
-        echo "   group renamed: $og -> $ng"
-      fi
+      echo "   group renamed: $og -> $ng"
     fi
   done
 
-  # 3. patch search_path of roles still pointing at the old schema name
+  # 3. patch search_path of roles still pointing at the old schema name.
+  #    pg_roles.rolconfig holds DATABASE-INDEPENDENT role settings, but this command
+  #    renames the schema in ONE database. PostgreSQL provides no way to scope the
+  #    `ALTER ROLE ... SET` (setdatabase=0) form per-database, so the patch below is
+  #    unavoidably cluster-wide. Warn honestly where that is likely to hurt.
+  local other
+  for other in $($PSQL -tAc "SELECT datname FROM pg_database WHERE datistemplate=false AND datallowconn AND datname<>'$d'"); do
+    if [ "$($PSQL -d "$other" -tAc "SELECT count(*) FROM information_schema.schemata WHERE schema_name='$o'")" = "1" ]; then
+      echo "   WARNING: schema '$o' also exists in database '$other' — role search_path is cluster-wide; patching may break '$other'."
+    fi
+  done
+
   local roles r cur cur_val new_sp
   roles="$($PSQL -tAc "SELECT rolname FROM pg_roles WHERE rolconfig::text LIKE '%search_path%' AND rolconfig::text LIKE '%${o}%'")"
   for r in $roles; do
@@ -183,8 +200,11 @@ SQL
     # Replace ONLY whole tokens: the quoted form (what set-search-path writes) and a
     # delimiter-bounded bare form. A plain substring replace would corrupt names that
     # merely contain the old name (e.g. renaming "finance" must not touch "myfinance").
+    # Both branches emit the QUOTED form: $new_sp is bash-expanded raw into
+    # `ALTER ROLE ... SET search_path = $new_sp`, so a bare reserved word (user, order)
+    # would break the statement. This matches what cmd_set_search_path writes.
     new_sp="$(printf '%s' "$cur_val" \
-      | sed -E "s/\"${o}\"/\"${n}\"/g; s/(^|[[:space:],])${o}([[:space:],]|\$)/\1${n}\2/g")"
+      | sed -E "s/\"${o}\"/\"${n}\"/g; s/(^|[[:space:],])${o}([[:space:],]|\$)/\1\"${n}\"\2/g")"
     # No-op guard: the old name may appear in rolconfig::text (matched by the role
     # discovery query above) without actually being a token in THIS search_path value
     # (e.g. it's elsewhere in rolconfig, or already not present here). Skip the ALTER
@@ -200,6 +220,7 @@ SQL
       echo "   WARNING: role $r search_path still mentions '$o' — check manually: $new_sp"
     fi
   done
+  echo "   NOTE: the search_path patch is cluster-wide (role settings are database-independent), not limited to '$d'."
   echo "   NOTE: application code hard-coding the old schema name must be updated."
 }
 
@@ -460,18 +481,36 @@ _bind_file() {                  # <user> <action>
   local peruser inc="include_if_exists pg_hba_peruser.conf"
   [ -f "$hba" ] || die "Cannot find $hba (set HBA=...)."
   peruser="$(dirname "$hba")/pg_hba_peruser.conf"
-  sudo cp -a "$hba" "$hba.bak" 2>/dev/null || true
-  sudo touch "$peruser"; sudo chown --reference="$hba" "$peruser" 2>/dev/null || true; sudo chmod 640 "$peruser" 2>/dev/null || true
-  grep -qxF "$inc" "$hba" || { sudo sed -i "1i $inc" "$hba"; echo "  + added include at top of $hba"; }
-  sudo sed -i "/^# >>> peruser:$user$/,/^# <<< peruser:$user$/d" "$peruser"
+  # Every privileged step below MUST fail loudly. This function's exit status is the
+  # caller's only signal that the pin really landed, and callers invoke it in condition
+  # context (`if ! cmd_bind_ip ...`), where `set -e` is suppressed for the whole chain.
+  # Without these guards a denied sudo (no NOPASSWD / no TTY / cron) writes nothing, the
+  # psql check at the end still succeeds, and the caller is told the pin was written.
+  sudo cp -a "$hba" "$hba.bak" 2>/dev/null || true   # backup: best-effort only
+  sudo touch "$peruser" || return 1
+  sudo chown --reference="$hba" "$peruser" 2>/dev/null || true
+  sudo chmod 640 "$peruser" 2>/dev/null || true
+  # Read with the same privilege used to write: $hba/$peruser are 0640 postgres:postgres
+  # and this script runs as a non-root admin, so an unprivileged grep returns EACCES
+  # (not "absent") and would re-insert the include line on every run.
+  if ! sudo grep -qxF "$inc" "$hba"; then
+    sudo sed -i "1i $inc" "$hba" || return 1
+    echo "  + added include at top of $hba"
+  fi
+  sudo sed -i "/^# >>> peruser:$user$/,/^# <<< peruser:$user$/d" "$peruser" || return 1
   if [ "$action" = "--unpin" ]; then
+    # Post-condition: the block must actually be gone.
+    if sudo grep -q "^# >>> peruser:$user$" "$peruser"; then return 1; fi
     echo ">> [file] Unpinned '$user'."
   else
     local blk="# >>> peruser:$user"$'\n'; local ip
     IFS=',' read -ra arr <<< "$action"
     for ip in "${arr[@]}"; do case "$ip" in */*) ;; *) ip="$ip/32";; esac; blk+="host all $user $ip scram-sha-256"$'\n'; done
     blk+="host all $user 0.0.0.0/0 reject"$'\n'"host all $user ::0/0 reject"$'\n'"# <<< peruser:$user"
-    printf '%s\n' "$blk" | sudo tee -a "$peruser" >/dev/null
+    printf '%s\n' "$blk" | sudo tee -a "$peruser" >/dev/null || return 1
+    # Post-condition: verify the block landed rather than trusting exit codes through
+    # the printf|sudo tee pipeline. Trust the file, not the plumbing.
+    sudo grep -q "^# >>> peruser:$user$" "$peruser" || return 1
     echo ">> [file] Pinned '$user' -> $action (other IPs rejected)."
   fi
   $PSQL -c "SELECT pg_reload_conf();" >/dev/null
@@ -516,6 +555,17 @@ PY
   echo ">> [patroni] Updated per-user pg_hba for '$user' (cluster $cluster)."
 }
 
+# Read the per-user pg_hba file with whatever privilege actually works. The file is
+# 0640 postgres:postgres and this script runs as a sudo-capable non-root admin, so
+# sudo is tried first. Prints the content; returns non-zero if it cannot be read at all
+# (absent, or sudo unusable) — the caller MUST distinguish those two cases.
+_read_peruser() {               # <file>
+  local f="$1"
+  if sudo test -r "$f" 2>/dev/null; then sudo cat "$f"; return 0; fi
+  if [ -r "$f" ]; then cat "$f"; return 0; fi
+  return 1
+}
+
 # Best-effort migration of a bind-ip pin when a role is renamed (file mode only).
 _migrate_peruser_hba() {        # <old> <new>
   local old="$1" new="$2"
@@ -530,17 +580,35 @@ _migrate_peruser_hba() {        # <old> <new>
     return 0
   fi
   local peruser; peruser="$(dirname "$hba")/pg_hba_peruser.conf"
-  if [ ! -f "$peruser" ] || ! grep -q "^# >>> peruser:$old$" "$peruser" 2>/dev/null; then
+  # Read with the SAME privilege used to write. $peruser is 0640 postgres:postgres and
+  # this script runs as a sudo-capable non-root admin, so a plain `grep -q ... 2>/dev/null`
+  # gets EACCES and silently reports "no pin found" for a user that IS pinned — leaving
+  # the renamed role unpinned against the base catch-all.
+  local content
+  if ! content="$(_read_peruser "$peruser")"; then
+    # Unreadable. Only report "nothing to migrate" when absence is POSITIVELY provable:
+    # a denied sudo must never be mistaken for "this user has no pin".
+    if [ ! -e "$peruser" ] && sudo test ! -e "$peruser" 2>/dev/null; then
+      echo "   (no IP pin found for '$old' — nothing to migrate)"
+      return 0
+    fi
+    die "Cannot read $peruser (need sudo). Role '$old' was renamed to '$new'; it is currently UNPINNED — re-pin manually before use: ./axdb.sh bind-ip $new <ip[,ip2]> --file"
+  fi
+  if ! printf '%s\n' "$content" | grep -q "^# >>> peruser:$old$"; then
     echo "   (no IP pin found for '$old' — nothing to migrate)"
     return 0
   fi
   local ips
-  ips="$(sed -n "/^# >>> peruser:$old$/,/^# <<< peruser:$old$/p" "$peruser" \
+  ips="$(printf '%s\n' "$content" \
+        | sed -n "/^# >>> peruser:$old$/,/^# <<< peruser:$old$/p" \
         | awk -v u="$old" '$1=="host" && $3==u && $5=="scram-sha-256" {printf "%s%s", sep, $4; sep=","}')"
   if [ -z "$ips" ]; then
-    sudo sed -i "/^# >>> peruser:$old$/,/^# <<< peruser:$old$/d" "$peruser"
-    echo "   removed stale pin block for '$old' (no allowed IPs found)"
-    return 0
+    # The '# >>> peruser:$old' marker matched, so this block is NOT stale — we simply
+    # cannot parse it (hand-edited, hostssl, md5, ...). Deleting it would silently drop
+    # a real restriction. Leave it alone and make the operator look.
+    echo "   WARNING: pin block for '$old' exists but no parseable 'host ... scram-sha-256' rule was found."
+    echo "   WARNING: '$new' is UNPINNED. Left the old block in place — inspect $peruser and re-pin manually."
+    return 1
   fi
   # Re-pin the NEW name FIRST, before touching the old block. If this fails
   # partway (sudo denied, no TTY, disk full), abort loudly and leave the old
@@ -552,7 +620,11 @@ _migrate_peruser_hba() {        # <old> <new>
     echo "   WARNING: fix with: ./axdb.sh bind-ip $new $ips --file"
     return 1
   fi
-  sudo sed -i "/^# >>> peruser:$old$/,/^# <<< peruser:$old$/d" "$peruser"
+  if ! sudo sed -i "/^# >>> peruser:$old$/,/^# <<< peruser:$old$/d" "$peruser"; then
+    echo "   WARNING: '$new' is pinned to $ips, but the old block for '$old' could not be removed."
+    echo "   WARNING: remove it manually from $peruser (it pins a role that no longer exists)."
+    return 1
+  fi
   echo "   migrated IP pin: $old -> $new ($ips)"
   echo "   NOTE: '$new' was briefly unpinned between the role rename and this re-pin — run this migration promptly."
 }
@@ -567,7 +639,10 @@ cmd_rename_user() {             # <old> <new>
 ALTER ROLE :"o" RENAME TO :"n";
 SQL
   echo ">> Renamed role $o -> $n"
-  _migrate_peruser_hba "$o" "$n"
+  # `|| true`: a failed migration already printed its own WARNINGs, and under `set -e` a
+  # non-zero return would abort before the NOTE below — exactly when the operator most
+  # needs it. The warnings carry the signal; the NOTE must still print.
+  _migrate_peruser_hba "$o" "$n" || true
   echo "   NOTE: update any application connection string using the old username."
 }
 
