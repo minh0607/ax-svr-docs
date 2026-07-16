@@ -124,6 +124,8 @@ Attach privileges to a GROUP (group role), NOT directly to each user:
 
 Each project = 1 schema; groups `<schema>_readonly` / `<schema>_readwrite`; each person = 1 login role assigned to a group.
 
+> **Note:** group roles are cluster-global. Reusing the same schema name in two different databases makes them share one group role — a user granted the group for one DB also gets it in the other. Within one database this is a non-issue; qualify group names per-DB if you ever need the same schema name across databases.
+
 Create a schema for 1 app:
 ```bash
 ./create-schema.sh finance appdb appowner

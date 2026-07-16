@@ -451,6 +451,8 @@ Database AXDEV
 └── schema finance      →  fi_cost, fi_fee                        (group finance_readonly/readwrite)
 ```
 
+> **Lưu ý:** group role là cluster-global (dùng chung toàn cluster). Nếu tạo TRÙNG tên schema ở hai database khác nhau, chúng dùng chung một group — người được gán group ở DB này cũng có quyền ở schema cùng tên bên DB kia. Trong cùng một database thì không sao; nếu cần trùng tên schema qua nhiều database, hãy đặt tên group kèm tên DB.
+
 Tạo schema cho 1 project (xem thêm `docs/db-scripts/README.md`):
 ```bash
 ./create-schema.sh finance appdb appowner
