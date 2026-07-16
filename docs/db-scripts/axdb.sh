@@ -127,6 +127,19 @@ SQL
   echo ">> Moved table $t -> schema $s (db: $d). Table name unchanged."
 }
 
+cmd_rename_table() {            # <db> <table> <new_name>
+  local d="${1:-}" t="${2:-}" n="${3:-}"
+  [ -n "$d" ] && [ -n "$t" ] && [ -n "$n" ] || die "Usage: axdb.sh rename-table <db> <table> <new_name>"
+  db_exists "$d" || die "Database '$d' does not exist."
+  case "$n" in *.*) die "New name must be a bare table name (no schema prefix). The table keeps its current schema.";; esac
+  # $t bash-expands (may be schema-qualified); :"n" is psql-interpolated
+  $PSQL -d "$d" -v n="$n" <<SQL
+ALTER TABLE $t RENAME TO :"n";
+SQL
+  echo ">> Renamed table $t -> $n (db: $d). Schema unchanged."
+  echo "   NOTE: application code referencing the old name must be updated."
+}
+
 cmd_drop_schema() {             # <db> <schema> [--cascade]
   local d="${1:-}" s="${2:-}" mode="${3:-}"
   [ -n "$d" ] && [ -n "$s" ] || die "Usage: axdb.sh drop-schema <db> <schema> [--cascade]"
@@ -610,6 +623,7 @@ axdb.sh — PostgreSQL administration (AX Svr)
   set-owner <db> <table> <owner>              Change table owner (new owner gets full structural control)
   set-db-owner <db> <owner>                   Change database owner
   set-schema  <db> <table> <schema>           Move a table into a schema (table name unchanged)
+  rename-table <db> <table> <new_name>        Rename a table (schema unchanged; new name must be bare)
   drop-schema <db> <schema> [--cascade]       Drop a schema (RESTRICT by default; re-type to confirm)
   passwd <role>                               Change password (reset password)
   drop-user <user> [reassign_to=dbadmin]      Drop user safely
@@ -735,6 +749,7 @@ case "$cmd" in
   set-search-path)    cmd_set_search_path "$@";;
   set-owner)          cmd_set_owner "$@";;
   set-schema)         cmd_set_schema "$@";;
+  rename-table)       cmd_rename_table "$@";;
   drop-schema)        cmd_drop_schema "$@";;
   set-db-owner)       cmd_set_db_owner "$@";;
   passwd)             cmd_passwd "$@";;
