@@ -516,6 +516,50 @@ PY
   echo ">> [patroni] Updated per-user pg_hba for '$user' (cluster $cluster)."
 }
 
+# Best-effort migration of a bind-ip pin when a role is renamed (file mode only).
+_migrate_peruser_hba() {        # <old> <new>
+  local old="$1" new="$2"
+  local hba="${HBA:-/etc/postgresql/${PG_VER:-17}/main/pg_hba.conf}"
+  if { command -v patronictl >/dev/null && [ -f "${PATRONI_CONF:-/etc/patroni/patroni.yml}" ]; }; then
+    echo "   WARNING: Patroni detected. Per-user pg_hba lives in the DCS — re-pin manually:"
+    echo "            ./axdb.sh bind-ip $new <ip[,ip2]> --patroni    (and unpin the old name)"
+    return 0
+  fi
+  if [ ! -f "$hba" ]; then
+    echo "   (no pg_hba at $hba — skipped IP-pin migration; re-pin manually if this user was pinned)"
+    return 0
+  fi
+  local peruser; peruser="$(dirname "$hba")/pg_hba_peruser.conf"
+  if [ ! -f "$peruser" ] || ! grep -q "^# >>> peruser:$old$" "$peruser" 2>/dev/null; then
+    echo "   (no IP pin found for '$old' — nothing to migrate)"
+    return 0
+  fi
+  local ips
+  ips="$(sed -n "/^# >>> peruser:$old$/,/^# <<< peruser:$old$/p" "$peruser" \
+        | awk -v u="$old" '$1=="host" && $3==u && $5=="scram-sha-256" {printf "%s%s", sep, $4; sep=","}')"
+  sudo sed -i "/^# >>> peruser:$old$/,/^# <<< peruser:$old$/d" "$peruser"
+  if [ -n "$ips" ]; then
+    cmd_bind_ip "$new" "$ips" --file
+    echo "   migrated IP pin: $old -> $new ($ips)"
+  else
+    echo "   removed stale pin block for '$old' (no allowed IPs found)"
+  fi
+}
+
+cmd_rename_user() {             # <old> <new>
+  local o="${1:-}" n="${2:-}"
+  [ -n "$o" ] && [ -n "$n" ] || die "Usage: axdb.sh rename-user <old> <new>"
+  is_protected_role "$o" && die "'$o' is a protected role, cannot rename."
+  role_exists "$o" || die "Role '$o' does not exist."
+  role_exists "$n" && die "Role '$n' already exists."
+  $PSQL -v o="$o" -v n="$n" <<'SQL'
+ALTER ROLE :"o" RENAME TO :"n";
+SQL
+  echo ">> Renamed role $o -> $n"
+  _migrate_peruser_hba "$o" "$n"
+  echo "   NOTE: update any application connection string using the old username."
+}
+
 cmd_list() {                    # <roles|dbs|members <g>|grants <db>>
   case "${1:-roles}" in
     roles) $PSQL -c "\du";;
@@ -694,6 +738,7 @@ axdb.sh — PostgreSQL administration (AX Svr)
   drop-db <db>                                Drop database safely (re-type name)
   bind-ip <user> <ip[,ip2]|--unpin> [--file|--patroni]
                                               Pin user to specific IPs only (auto-detects DevDB/Patroni)
+  rename-user <old> <new>                     Rename a role + migrate its bind-ip pg_hba pin (file mode)
   dashboard <role>                            Show everything a user/group can access
   show dbs                                    List databases (owner, size, encoding)
   show tables <db>                            List tables (owner, size)
@@ -815,6 +860,7 @@ case "$cmd" in
   set-schema)         cmd_set_schema "$@";;
   rename-table)       cmd_rename_table "$@";;
   rename-schema)      cmd_rename_schema "$@";;
+  rename-user)        cmd_rename_user "$@";;
   drop-schema)        cmd_drop_schema "$@";;
   set-db-owner)       cmd_set_db_owner "$@";;
   passwd)             cmd_passwd "$@";;
