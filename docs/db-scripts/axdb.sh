@@ -232,6 +232,24 @@ SQL
   fi
 }
 
+cmd_grant_group() {             # <grant|revoke> <user> <group>
+  local act="$1" user="${2:-}" grp="${3:-}"
+  [ -n "$user" ] && [ -n "$grp" ] || die "Usage: axdb.sh {grant-group|revoke-group} <user> <group>"
+  role_exists "$user" || die "Role '$user' does not exist."
+  role_exists "$grp"  || die "Group role '$grp' does not exist."
+  if [ "$act" = grant ]; then
+    $PSQL -v u="$user" -v g="$grp" <<'SQL'
+GRANT :"g" TO :"u";
+SQL
+    echo ">> GRANT group $grp -> $user"
+  else
+    $PSQL -v u="$user" -v g="$grp" <<'SQL'
+REVOKE :"g" FROM :"u";
+SQL
+    echo ">> REVOKE group $grp <- $user"
+  fi
+}
+
 cmd_passwd() {                  # <role>
   local n="${1:-}"; [ -n "$n" ] || read -rp "Role: " n
   role_exists "$n" || die "Role '$n' does not exist."
@@ -512,6 +530,8 @@ axdb.sh — PostgreSQL administration (AX Svr)
   perm <db> [user]                            Permission overview (summary; or per-table drill-down for a user)
   grant  <role> <db> <table> "<privs>"        Grant privileges to role (user OR group)
   revoke <role> <db> <table> "<privs>"        Revoke privileges
+  grant-group  <user> <group>                 Add a user to a group (role membership: project / cross-project)
+  revoke-group <user> <group>                 Remove a user from a group
   set-owner <db> <table> <owner>              Change table owner (new owner gets full structural control)
   set-db-owner <db> <owner>                   Change database owner
   passwd <role>                               Change password (reset password)
@@ -562,10 +582,11 @@ menu() {
  16) Change database owner (set-db-owner)
  17) Role dashboard (user/group access)
  18) Show / inspect (dbs/tables/structure/owner/perms)
+ 19) Add / remove user to a group (grant-group / revoke-group)
   0) Exit
 ==========================================
 M
-    read -rp "Select [0-18]: " ch || exit 0
+    read -rp "Select [0-19]: " ch || exit 0
     case "$ch" in
       1) _run cmd_create_admin ;;
       2) _run cmd_create_user_admin ;;
@@ -598,6 +619,7 @@ M
             perms)     read -rp "Database: " d; read -rp "Table (blank=all): " t; _run cmd_show perms "$d" "$t";;
             *)         echo "Invalid.";;
           esac ;;
+      19) read -rp "Action [grant/revoke]: " a; read -rp "User: " u; read -rp "Group: " g; _run cmd_grant_group "$a" "$u" "$g" ;;
       0) echo "Bye."; exit 0 ;;
       *) echo "Invalid choice." ;;
     esac
@@ -619,6 +641,8 @@ case "$cmd" in
   perm)               cmd_perm "$@";;
   grant)              cmd_grant_revoke grant "$@";;
   revoke)             cmd_grant_revoke revoke "$@";;
+  grant-group)        cmd_grant_group grant "$@";;
+  revoke-group)       cmd_grant_group revoke "$@";;
   set-owner)          cmd_set_owner "$@";;
   set-db-owner)       cmd_set_db_owner "$@";;
   passwd)             cmd_passwd "$@";;
