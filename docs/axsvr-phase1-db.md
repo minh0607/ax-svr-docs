@@ -463,7 +463,7 @@ Tạo schema cho 1 project (xem thêm `docs/db-scripts/README.md`):
 
 | Cần | Lệnh | Ghi chú |
 |---|---|---|
-| Đọc 1 bảng finance | `GRANT USAGE ON SCHEMA finance TO acc;`<br>`GRANT SELECT ON finance.fi_cost TO acc;` | query ghi rõ `finance.fi_cost` |
+| Đọc 1 bảng finance | `GRANT USAGE ON SCHEMA finance TO acc;`<br>`GRANT SELECT ON finance.fi_cost TO acc;` | 2 lệnh thô này dùng khi thao tác trực tiếp bằng psql; `./axdb.sh grant` (bên dưới) tự làm luôn bước USAGE. query ghi rõ `finance.fi_cost` |
 | Đọc mọi bảng finance | `GRANT finance_readonly TO acc;` | gồm cả bảng tạo mới sau này |
 | Đọc+ghi mọi bảng finance | `GRANT finance_readwrite TO acc;` | |
 | Thu hồi | `REVOKE finance_readonly FROM acc;` | |

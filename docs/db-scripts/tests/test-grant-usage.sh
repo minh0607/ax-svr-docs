@@ -29,8 +29,13 @@ assert_eq "$(dq -d appdb -tAc "SELECT has_schema_privilege('acc2','finance','USA
 assert_eq "$(dq -d appdb -tAc "SELECT has_table_privilege('acc2','finance.fi_fee','SELECT')")" "t" "ALL TABLES form granted fi_fee"
 
 # 4. bare table name in public still works (resolved via search_path)
+# A fresh role has USAGE on public by default (granted to PUBLIC pseudo-role),
+# so we must revoke it first to actually exercise the auto-USAGE feature.
 dq -c "CREATE ROLE acc3 LOGIN PASSWORD 'x';" >/dev/null
+dq -d appdb -c "REVOKE USAGE ON SCHEMA public FROM PUBLIC;" >/dev/null
+assert_eq "$(dq -d appdb -tAc "SELECT has_schema_privilege('acc3','public','USAGE')")" "f" "baseline: acc3 has no USAGE on public after revoke"
 ./grant-table.sh grant acc3 appdb plain_t SELECT
+assert_eq "$(dq -d appdb -tAc "SELECT has_schema_privilege('acc3','public','USAGE')")" "t" "bare name resolved -> USAGE auto-granted on public"
 assert_eq "$(dq -d appdb -tAc "SELECT has_table_privilege('acc3','public.plain_t','SELECT')")" "t" "bare table name grant works"
 
 # 5. axdb.sh path behaves the same
