@@ -21,7 +21,7 @@
 
 ---
 
-### Task A: `grant-group` / `revoke-group` — cấp/thu group cho user đang có
+### Task 1: `grant-group` / `revoke-group` — cấp/thu group cho user đang có
 
 **Files:**
 - Modify: `docs/db-scripts/axdb.sh`
@@ -176,7 +176,7 @@ git commit -m "feat(db): grant-group/revoke-group — cấp/thu group cho user (
 
 ---
 
-### Task B: `set-search-path` — đặt search_path cho user
+### Task 2: `set-search-path` — đặt search_path cho user
 
 **Files:**
 - Modify: `docs/db-scripts/axdb.sh`
@@ -300,7 +300,7 @@ git commit -m "feat(db): set-search-path — đặt search_path cho user (schema
 
 ---
 
-### Task C: `show schemas` + `set-schema` + `drop-schema`
+### Task 3: `show schemas` + `set-schema` + `drop-schema`
 
 **Files:**
 - Modify: `docs/db-scripts/axdb.sh`
@@ -472,7 +472,7 @@ git commit -m "feat(db): show schemas + set-schema + drop-schema"
 
 ---
 
-### Task D: Menu/usage cho `schema` & `perm` (mục 1) + docs
+### Task 4: Menu/usage cho `schema` & `perm` (mục 1) + docs
 
 **Files:**
 - Modify: `docs/db-scripts/axdb.sh` (menu + usage only)
