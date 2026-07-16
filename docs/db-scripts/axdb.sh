@@ -513,8 +513,15 @@ _bind_file() {                  # <user> <action>
     sudo grep -q "^# >>> peruser:$user$" "$peruser" || return 1
     echo ">> [file] Pinned '$user' -> $action (other IPs rejected)."
   fi
-  $PSQL -c "SELECT pg_reload_conf();" >/dev/null
-  $PSQL -c "SELECT line_number,error FROM pg_hba_file_rules WHERE error IS NOT NULL;"
+  # The post-condition above (the block landed on disk) is what this function's return
+  # value must reflect — not the reload below. A failed reload/rules query does not mean
+  # the pin didn't land; it means the running server hasn't picked it up yet. Run the
+  # reload as a best-effort convenience and warn on failure, but do not flip the return
+  # value: callers (e.g. _migrate_peruser_hba) treat non-zero as "UNPINNED", which would
+  # be false here.
+  $PSQL -c "SELECT pg_reload_conf();" >/dev/null || echo "   WARNING: config reload/check failed — the pin is written but may not be active yet; run: SELECT pg_reload_conf();"
+  $PSQL -c "SELECT line_number,error FROM pg_hba_file_rules WHERE error IS NOT NULL;" || true
+  return 0
 }
 
 _bind_patroni() {               # <user> <action>
@@ -639,11 +646,14 @@ cmd_rename_user() {             # <old> <new>
 ALTER ROLE :"o" RENAME TO :"n";
 SQL
   echo ">> Renamed role $o -> $n"
-  # `|| true`: a failed migration already printed its own WARNINGs, and under `set -e` a
-  # non-zero return would abort before the NOTE below — exactly when the operator most
-  # needs it. The warnings carry the signal; the NOTE must still print.
-  _migrate_peruser_hba "$o" "$n" || true
+  # Capture the migration's exit code instead of swallowing it: a failed migration
+  # already printed its own WARNINGs, and under `set -e` a non-zero return would abort
+  # before the NOTE below — exactly when the operator most needs it. The NOTE must still
+  # print, but the caller (automation/cron) must still see a non-zero exit on failure.
+  local mig_rc=0
+  _migrate_peruser_hba "$o" "$n" || mig_rc=$?
   echo "   NOTE: update any application connection string using the old username."
+  return $mig_rc
 }
 
 cmd_list() {                    # <roles|dbs|members <g>|grants <db>>
