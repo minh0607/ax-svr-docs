@@ -437,3 +437,40 @@ Host=10.1.1.103,10.1.1.104,10.1.1.105;Port=5432;Database=<db>;
 Username=<user>;Password=<pwd>;Target Session Attributes=read-write
 ```
 Driver tự tìm primary; failover xong kết nối mới tự trỏ đúng. KHÔNG hardcode 1 IP.
+
+---
+
+## Phân quyền nhiều project (schema-per-app)
+
+Khi nhiều project dùng chung 1 database (vd `AXDEV`), mỗi project nên có **1 schema riêng** thay vì dồn hết vào `public`:
+
+```
+Database AXDEV
+├── schema production   →  pro_plan, pro_result                   (group production_readonly/readwrite)
+├── schema hr           →  hr_employee, hr_salary, hr_attendance  (group hr_readonly/readwrite)
+└── schema finance      →  fi_cost, fi_fee                        (group finance_readonly/readwrite)
+```
+
+Tạo schema cho 1 project (xem thêm `docs/db-scripts/README.md`):
+```bash
+./create-schema.sh finance appdb appowner
+# hoặc: ./axdb.sh schema finance appdb appowner
+```
+
+**Cấp quyền chéo project** — vd account Production cần đọc dữ liệu Finance:
+
+| Cần | Lệnh | Ghi chú |
+|---|---|---|
+| Đọc 1 bảng finance | `GRANT USAGE ON SCHEMA finance TO acc;`<br>`GRANT SELECT ON finance.fi_cost TO acc;` | query ghi rõ `finance.fi_cost` |
+| Đọc mọi bảng finance | `GRANT finance_readonly TO acc;` | gồm cả bảng tạo mới sau này |
+| Đọc+ghi mọi bảng finance | `GRANT finance_readwrite TO acc;` | |
+| Thu hồi | `REVOKE finance_readonly FROM acc;` | |
+
+Query chéo schema luôn phải ghi rõ `schema.table` (vd `SELECT * FROM finance.fi_cost`); trong project nhà thì để trần nhờ `search_path = <schema>, public`.
+
+Xem tổng quan quyền của user:
+```bash
+./list-access.sh perm appdb            # tóm tắt toàn bộ user
+./list-access.sh perm appdb prod_acc   # chi tiết từng bảng cho 1 user
+# tương đương: ./axdb.sh perm appdb [user]
+```

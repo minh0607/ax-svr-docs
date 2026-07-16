@@ -120,6 +120,37 @@ Attach privileges to a GROUP (group role), NOT directly to each user:
 
 > `grant` / `revoke` work for **any role** — a user OR a group. Prefer granting to groups; use per-user grants only for exceptions.
 
+## Multiple projects / multiple people: schema-per-app model
+
+Each project = 1 schema; groups `<schema>_readonly` / `<schema>_readwrite`; each person = 1 login role assigned to a group.
+
+Create a schema for 1 app:
+```bash
+./create-schema.sh finance appdb appowner
+# or: ./axdb.sh schema finance appdb appowner
+```
+
+Assign a person to the project + let queries skip the schema qualifier:
+```bash
+GRANT finance_readwrite TO fi_user;
+ALTER ROLE fi_user SET search_path = finance, public;
+```
+
+Grant cross-project access (Production reads all of Finance):
+```bash
+GRANT finance_readonly TO prod_acc;        -- includes future tables too
+-- queries must qualify the schema: SELECT * FROM finance.fi_cost;
+```
+
+View the permission overview:
+```bash
+./list-access.sh perm appdb            # summary of all users
+./list-access.sh perm appdb prod_acc   # per-table drill-down for one user
+# equivalent: ./axdb.sh perm appdb [user]
+```
+
+Note: default privileges are tied to the owner — always create tables as the actual owner of the schema/DB.
+
 ## Pin an account to specific IPs (`bind-user-ip.sh`)
 
 IPs are **not** set on the account — they are set in `pg_hba.conf`. This script manages that for you:
