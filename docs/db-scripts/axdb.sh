@@ -116,6 +116,42 @@ SQL
   echo ">> Owner $t -> $o (only owner can ADD/DROP COLUMN, DROP/ALTER table)."
 }
 
+cmd_set_schema() {              # <db> <table> <schema>
+  local d="${1:-}" t="${2:-}" s="${3:-}"
+  [ -n "$d" ] && [ -n "$t" ] && [ -n "$s" ] || die "Usage: axdb.sh set-schema <db> <table> <schema>"
+  db_exists "$d" || die "Database '$d' does not exist."
+  # $t bash-expands (may be schema-qualified, e.g. public.foo); :"s" is psql-interpolated
+  $PSQL -d "$d" -v s="$s" <<SQL
+ALTER TABLE $t SET SCHEMA :"s";
+SQL
+  echo ">> Moved table $t -> schema $s (db: $d). Table name unchanged."
+}
+
+cmd_drop_schema() {             # <db> <schema> [--cascade]
+  local d="${1:-}" s="${2:-}" mode="${3:-}"
+  [ -n "$d" ] && [ -n "$s" ] || die "Usage: axdb.sh drop-schema <db> <schema> [--cascade]"
+  # </dev/null: these lookups run before the confirmation read below; without it,
+  # a piped stdin (docker exec -i in the test harness) gets drained here instead
+  # of reaching `read -rp`, breaking the re-type confirmation.
+  db_exists "$d" </dev/null || die "Database '$d' does not exist."
+  case "$s" in public|information_schema|pg_*) die "'$s' is a protected schema.";; esac
+  local ntables; ntables="$($PSQL -d "$d" -tAc "SELECT count(*) FROM pg_tables WHERE schemaname='$s'" </dev/null)"
+  echo "Schema: $s (db: $d) | tables: $ntables"
+  [ "$mode" = "--cascade" ] && echo "⚠️  CASCADE — will also drop all $ntables table(s) in it."
+  local typed; read -rp "Re-type the EXACT schema name to confirm: " typed
+  [ "$typed" = "$s" ] || die "Does not match. Cancelled."
+  if [ "$mode" = "--cascade" ]; then
+    $PSQL -d "$d" -v s="$s" <<'SQL'
+DROP SCHEMA :"s" CASCADE;
+SQL
+  else
+    $PSQL -d "$d" -v s="$s" <<'SQL'
+DROP SCHEMA :"s" RESTRICT;
+SQL
+  fi
+  echo ">> Dropped schema: $s (group roles ${s}_readonly/${s}_readwrite remain — DROP ROLE them if unused)."
+}
+
 cmd_setup_groups() {            # <db> [owner]
   local d="${1:-}"; [ -n "$d" ] || read -rp "Database: " d
   db_exists "$d" || die "Database '$d' does not exist."
@@ -502,6 +538,15 @@ SELECT datname AS database, pg_get_userbyid(datdba) AS owner,
 FROM pg_database WHERE datistemplate=false ORDER BY 1;
 SQL
       ;;
+    schemas)
+      local dsc="${2:-}"; [ -n "$dsc" ] || die "Missing database."; db_exists "$dsc" || die "Database '$dsc' does not exist."
+      $PSQL -d "$dsc" <<'SQL'
+SELECT n.nspname AS schema, pg_get_userbyid(n.nspowner) AS owner
+FROM pg_namespace n
+WHERE n.nspname NOT LIKE 'pg\_%' AND n.nspname <> 'information_schema'
+ORDER BY 1;
+SQL
+      ;;
     tables)
       local dt="${2:-}"; [ -n "$dt" ] || die "Missing database."; db_exists "$dt" || die "Database '$dt' does not exist."
       $PSQL -d "$dt" <<'SQL'
@@ -538,7 +583,7 @@ SQL
       local dp="${2:-}" tp="${3:-}"; [ -n "$dp" ] || die "Missing database."; db_exists "$dp" || die "Database '$dp' does not exist."
       $PSQL -d "$dp" -c "\\dp $tp"
       ;;
-    *) die "show <dbs|tables <db>|structure <db> <table>|owner <db> [table]|perms <db> [table]>";;
+    *) die "show <dbs|tables <db>|structure <db> <table>|owner <db> [table]|perms <db> [table]|schemas <db>>";;
   esac
 }
 
@@ -564,6 +609,8 @@ axdb.sh — PostgreSQL administration (AX Svr)
   set-search-path <user> <schema[,schema2]|--reset>   Set a user's search_path (auto-appends public); --reset clears it
   set-owner <db> <table> <owner>              Change table owner (new owner gets full structural control)
   set-db-owner <db> <owner>                   Change database owner
+  set-schema  <db> <table> <schema>           Move a table into a schema (table name unchanged)
+  drop-schema <db> <schema> [--cascade]       Drop a schema (RESTRICT by default; re-type to confirm)
   passwd <role>                               Change password (reset password)
   drop-user <user> [reassign_to=dbadmin]      Drop user safely
   drop-db <db>                                Drop database safely (re-type name)
@@ -575,6 +622,7 @@ axdb.sh — PostgreSQL administration (AX Svr)
   show structure <db> <table>                 Show table structure (columns/indexes)
   show owner <db> [table]                     Show database/table owner
   show perms <db> [table]                     Show privileges (\dp)
+  show schemas <db>                           List schemas (owner)
   list <roles|dbs|members <g>|grants <db>>    View roles/dbs/privileges
   check                                       Check connection (which user is connected)
   help                                        This help
@@ -614,10 +662,12 @@ menu() {
  18) Show / inspect (dbs/tables/structure/owner/perms)
  19) Add / remove user to a group (grant-group / revoke-group)
  20) Set a user's search_path
+ 21) Move table into a schema (set-schema)
+ 22) Drop schema (safe)
   0) Exit
 ==========================================
 M
-    read -rp "Select [0-20]: " ch || exit 0
+    read -rp "Select [0-22]: " ch || exit 0
     case "$ch" in
       1) _run cmd_create_admin ;;
       2) _run cmd_create_user_admin ;;
@@ -641,17 +691,20 @@ M
       15) read -rp "Database: " d; read -rp "Table name: " t; read -rp "New owner: " o; _run cmd_set_owner "$d" "$t" "$o" ;;
       16) read -rp "Database: " d; read -rp "New owner: " o; _run cmd_set_db_owner "$d" "$o" ;;
       17) read -rp "User/Group role: " r; _run cmd_dashboard "$r" ;;
-      18) read -rp "Show [dbs/tables/structure/owner/perms]: " s
+      18) read -rp "Show [dbs/tables/structure/owner/perms/schemas]: " s
           case "$s" in
             dbs)       _run cmd_show dbs;;
             tables)    read -rp "Database: " d; _run cmd_show tables "$d";;
             structure) read -rp "Database: " d; read -rp "Table: " t; _run cmd_show structure "$d" "$t";;
             owner)     read -rp "Database: " d; read -rp "Table (blank=all): " t; _run cmd_show owner "$d" "$t";;
             perms)     read -rp "Database: " d; read -rp "Table (blank=all): " t; _run cmd_show perms "$d" "$t";;
+            schemas)   read -rp "Database: " d; _run cmd_show schemas "$d";;
             *)         echo "Invalid.";;
           esac ;;
       19) read -rp "Action [grant/revoke]: " a; read -rp "User: " u; read -rp "Group: " g; _run cmd_grant_group "$a" "$u" "$g" ;;
       20) read -rp "User: " u; read -rp "search_path (e.g. finance  or  --reset): " p; _run cmd_set_search_path "$u" "$p" ;;
+      21) read -rp "Database: " d; read -rp "Table (or schema.table): " t; read -rp "Target schema: " s; _run cmd_set_schema "$d" "$t" "$s" ;;
+      22) read -rp "Database: " d; read -rp "Schema: " s; read -rp "Cascade? [Enter=no / --cascade]: " m; _run cmd_drop_schema "$d" "$s" "${m:-}" ;;
       0) echo "Bye."; exit 0 ;;
       *) echo "Invalid choice." ;;
     esac
@@ -677,6 +730,8 @@ case "$cmd" in
   revoke-group)       cmd_grant_group revoke "$@";;
   set-search-path)    cmd_set_search_path "$@";;
   set-owner)          cmd_set_owner "$@";;
+  set-schema)         cmd_set_schema "$@";;
+  drop-schema)        cmd_drop_schema "$@";;
   set-db-owner)       cmd_set_db_owner "$@";;
   passwd)             cmd_passwd "$@";;
   drop-user)          cmd_drop_user "$@";;
