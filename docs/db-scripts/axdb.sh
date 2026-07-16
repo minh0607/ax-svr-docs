@@ -116,9 +116,16 @@ SQL
   echo ">> Owner $t -> $o (only owner can ADD/DROP COLUMN, DROP/ALTER table)."
 }
 
-cmd_setup_groups() {            # <db>
+cmd_setup_groups() {            # <db> [owner]
   local d="${1:-}"; [ -n "$d" ] || read -rp "Database: " d
   db_exists "$d" || die "Database '$d' does not exist."
+  local owner="${2:-}"
+  if [ -z "$owner" ]; then
+    owner="$($PSQL -tAc "SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname='$d'")"
+    [ -n "$owner" ] || die "Cannot resolve owner of '$d'."
+    echo ">> owner not given, using database owner: $owner"
+  fi
+  role_exists "$owner" || die "Owner role '$owner' does not exist."
   local ro="${d}_readonly" rw="${d}_readwrite"
   role_exists "$ro" || $PSQL -v g="$ro" <<'SQL'
 CREATE ROLE :"g" NOLOGIN;
@@ -126,17 +133,84 @@ SQL
   role_exists "$rw" || $PSQL -v g="$rw" <<'SQL'
 CREATE ROLE :"g" NOLOGIN;
 SQL
-  $PSQL -d "$d" -v db="$d" -v ro="$ro" -v rw="$rw" <<'SQL'
+  $PSQL -d "$d" -v db="$d" -v ro="$ro" -v rw="$rw" -v owner="$owner" <<'SQL'
 GRANT CONNECT ON DATABASE :"db" TO :"ro", :"rw";
 GRANT USAGE ON SCHEMA public TO :"ro", :"rw";
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO :"ro";
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO :"rw";
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO :"rw";
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO :"ro";
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"rw";
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO :"rw";
+ALTER DEFAULT PRIVILEGES FOR ROLE :"owner" IN SCHEMA public GRANT SELECT ON TABLES TO :"ro";
+ALTER DEFAULT PRIVILEGES FOR ROLE :"owner" IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"rw";
+ALTER DEFAULT PRIVILEGES FOR ROLE :"owner" IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO :"rw";
 SQL
-  echo ">> Created groups: $ro (read), $rw (read+write) + default privileges."
+  echo ">> Created groups: $ro (read), $rw (read+write) + default privileges FOR ROLE $owner."
+}
+
+cmd_schema() {                  # <app> <db> [owner]
+  local SCH="${1:-}" DB="${2:-}" OWNER="${3:-}"
+  [ -n "$SCH" ] && [ -n "$DB" ] || die "Usage: axdb.sh schema <app> <db> [owner]"
+  db_exists "$DB" || die "Database '$DB' does not exist."
+  if [ -z "$OWNER" ]; then
+    OWNER="$($PSQL -tAc "SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname='$DB'")"
+    [ -n "$OWNER" ] || die "Cannot resolve owner of '$DB'."
+    echo ">> owner not given, using database owner: $OWNER"
+  fi
+  role_exists "$OWNER" || die "Owner role '$OWNER' does not exist."
+  local RO="${SCH}_readonly" RW="${SCH}_readwrite"
+  for g in "$RO" "$RW"; do
+    role_exists "$g" || $PSQL -v g="$g" <<'SQL'
+CREATE ROLE :"g" NOLOGIN;
+SQL
+  done
+  $PSQL -d "$DB" -v db="$DB" -v sch="$SCH" -v owner="$OWNER" -v ro="$RO" -v rw="$RW" <<'SQL'
+CREATE SCHEMA IF NOT EXISTS :"sch" AUTHORIZATION :"owner";
+GRANT CONNECT ON DATABASE :"db" TO :"ro", :"rw";
+GRANT USAGE ON SCHEMA :"sch" TO :"ro", :"rw";
+GRANT SELECT ON ALL TABLES IN SCHEMA :"sch" TO :"ro";
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA :"sch" TO :"rw";
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA :"sch" TO :"rw";
+ALTER DEFAULT PRIVILEGES FOR ROLE :"owner" IN SCHEMA :"sch" GRANT SELECT ON TABLES TO :"ro";
+ALTER DEFAULT PRIVILEGES FOR ROLE :"owner" IN SCHEMA :"sch" GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"rw";
+ALTER DEFAULT PRIVILEGES FOR ROLE :"owner" IN SCHEMA :"sch" GRANT USAGE, SELECT ON SEQUENCES TO :"rw";
+SQL
+  echo ">> schema '$SCH' ready in '$DB' (owner $OWNER): $RO / $RW"
+}
+
+cmd_perm() {                    # <db> [user]
+  local DB="${1:-}" U="${2:-}"
+  [ -n "$DB" ] || die "Usage: axdb.sh perm <db> [user]"
+  db_exists "$DB" || die "Database '$DB' does not exist."
+  if [ -z "$U" ]; then
+    $PSQL -d "$DB" <<'SQL'
+SELECT r.rolname AS role,
+       CASE WHEN r.rolsuper THEN 't' ELSE 'f' END AS super,
+       COALESCE(string_agg(DISTINCT g.rolname, ', ' ORDER BY g.rolname), '(none)') AS groups,
+       COALESCE(string_agg(DISTINCT
+         CASE WHEN g.rolname LIKE '%\_readwrite' THEN regexp_replace(g.rolname,'_readwrite$','')||': RW'
+              WHEN g.rolname LIKE '%\_readonly'  THEN regexp_replace(g.rolname,'_readonly$','') ||': RO' END,
+         ', '), CASE WHEN r.rolsuper THEN 'ALL' ELSE '-' END) AS schema_access
+FROM pg_roles r
+LEFT JOIN pg_auth_members m ON m.member = r.oid
+LEFT JOIN pg_roles g ON g.oid = m.roleid
+WHERE r.rolcanlogin AND r.rolname NOT LIKE 'pg\_%'
+GROUP BY r.rolname, r.rolsuper ORDER BY r.rolsuper DESC, r.rolname;
+SQL
+  else
+    role_exists "$U" || die "Role '$U' does not exist."
+    $PSQL -d "$DB" -v u="$U" <<'SQL'
+SELECT n.nspname AS schema, c.relname AS "table",
+       array_to_string(ARRAY[
+         CASE WHEN has_table_privilege(:'u', c.oid,'SELECT') THEN 'SELECT' END,
+         CASE WHEN has_table_privilege(:'u', c.oid,'INSERT') THEN 'INSERT' END,
+         CASE WHEN has_table_privilege(:'u', c.oid,'UPDATE') THEN 'UPDATE' END,
+         CASE WHEN has_table_privilege(:'u', c.oid,'DELETE') THEN 'DELETE' END], ',') AS privileges
+FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+WHERE c.relkind='r' AND n.nspname NOT IN ('pg_catalog','information_schema')
+  AND (has_table_privilege(:'u', c.oid,'SELECT') OR has_table_privilege(:'u', c.oid,'INSERT')
+    OR has_table_privilege(:'u', c.oid,'UPDATE') OR has_table_privilege(:'u', c.oid,'DELETE'))
+ORDER BY 1,2;
+SQL
+  fi
 }
 
 cmd_grant_revoke() {            # <grant|revoke> <role> <db> <table> <privs>
@@ -433,7 +507,9 @@ axdb.sh — PostgreSQL administration (AX Svr)
   create-user <user> [group]                  Create regular user (+assign to group)
   create-db <db> [owner]                      Create database + revoke PUBLIC
   create-table <db> <table> "<columns>" [owner]   Create table (optional owner — new owner can add columns)
-  setup-groups <db>                           Create <db>_readonly/_readwrite + default priv
+  setup-groups <db> [owner]                   Create <db>_readonly/_readwrite + default priv (FOR ROLE owner)
+  schema <app> <db> [owner]                   Create schema <app> + <app>_readonly/_readwrite + default priv (FOR ROLE owner)
+  perm <db> [user]                            Permission overview (summary; or per-table drill-down for a user)
   grant  <role> <db> <table> "<privs>"        Grant privileges to role (user OR group)
   revoke <role> <db> <table> "<privs>"        Revoke privileges
   set-owner <db> <table> <owner>              Change table owner (new owner gets full structural control)
@@ -539,6 +615,8 @@ case "$cmd" in
   create-db)          cmd_create_db "$@";;
   create-table)       cmd_create_table "$@";;
   setup-groups)       cmd_setup_groups "$@";;
+  schema)             cmd_schema "$@";;
+  perm)               cmd_perm "$@";;
   grant)              cmd_grant_revoke grant "$@";;
   revoke)             cmd_grant_revoke revoke "$@";;
   set-owner)          cmd_set_owner "$@";;
