@@ -55,6 +55,9 @@ Người đến/đi = thêm/bớt login role + gán group; không đụng bảng
 - Group: `<schema>_readonly`, `<schema>_readwrite`.
 - Bảng trong schema mới **không cần prefix** (`production.plan` thay vì `production.pro_plan`). Project cũ đã có prefix thì **giữ nguyên**, không bắt buộc đổi.
 
+### Quy ước ngôn ngữ script
+Toàn bộ **giao diện script** (prompt nhập liệu, thông báo `echo`, tiêu đề cột output, thông báo lỗi) viết **tiếng Anh** — đồng bộ với các script hiện có trong `db-scripts/`. Tài liệu hướng dẫn (`README.md`, `axsvr-phase1-db.md`, spec) vẫn tiếng Việt.
+
 ### Ví dụ minh họa (AXDEV)
 ```
 Database AXDEV
@@ -113,7 +116,12 @@ Thứ tự an toàn (chạy trên DevDB `AXDEV`):
    tạo schema + 2 group role + `GRANT USAGE`/quyền bảng hiện có + `ALTER DEFAULT PRIVILEGES ... FOR ROLE <owner>` — trong 1 lần chạy. Owner mặc định = owner của DB nếu không truyền.
 2. **Vá `setup-group-roles.sh`** (và nhánh tương ứng trong `axdb.sh`): nhận thêm tham số `[owner]`, sinh `ALTER DEFAULT PRIVILEGES FOR ROLE <owner>` thay vì để trống. Giữ tương thích ngược (không truyền owner → cảnh báo + hành vi cũ).
 3. **Bổ sung lệnh cấp quyền chéo** vào `grant-table.sh`/`axdb.sh` hoặc tài liệu hóa: gán group (`GRANT <schema>_readonly TO acc`) như cách chuẩn cấp quyền cả schema.
-4. **Cập nhật docs:** `docs/db-scripts/README.md` + `docs/axsvr-phase1-db.md` — thêm mục "Nhiều project / nhiều người: schema-per-app" kèm ví dụ Production/HR/Finance ở mục 3–4.
+4. **Thêm tool "permission overview" theo user** — `axdb.sh perm <db> [user]` (và nhánh tương ứng trong `list-access.sh`):
+   - **Không có `[user]` → bản tóm tắt toàn bộ user** (mức 1): mỗi login role 1 dòng — thuộc tính (`super`), group đang thuộc, và schema truy cập được (RO/RW) suy từ tên group `<schema>_readonly|readwrite`.
+   - **Có `[user]` → drill-down 1 user** (mức 2): quyền hiệu lực (effective, gồm cả kế thừa qua group) trên từng bảng, dùng `has_table_privilege(user, table, priv)` để tính đúng cả quyền thừa hưởng.
+   - Output **tiếng Anh** (`role | super | groups | schema access`; `schema.table | privileges`).
+   - Truy vấn tham khảo ở Phụ lục B.
+5. **Cập nhật docs:** `docs/db-scripts/README.md` + `docs/axsvr-phase1-db.md` — thêm mục "Nhiều project / nhiều người: schema-per-app" kèm ví dụ Production/HR/Finance ở mục 3–4.
 
 ## 7. Sửa `db_dev`
 
@@ -129,6 +137,7 @@ Chạy trên DevDB, kịch bản kiểm chứng:
 3. Account Production (member `production_readwrite`) query `finance.fi_cost` **trước** khi cấp → bị từ chối; sau `GRANT finance_readonly` → đọc được; sau `REVOKE` → lại bị từ chối.
 4. licasi: đăng nhập bằng role app, query để trần `licasi_importlog` → ra dữ liệu (chứng minh search_path đúng, code không phải sửa).
 5. `db_dev` sau `NOSUPERUSER`: không còn tạo bảng thẳng vào `public` khi bị `REVOKE`.
+6. `perm`: `axdb.sh perm AXDEV` liệt kê đúng user + group + schema access; `axdb.sh perm AXDEV prod_acc` hiện đúng các bảng prod_acc đọc/ghi được **kể cả** bảng finance thừa hưởng qua `finance_readonly` (so khớp với bước 3).
 
 ## 9. Thứ tự triển khai
 
@@ -140,12 +149,12 @@ Chạy trên DevDB, kịch bản kiểm chứng:
 6. Cập nhật docs (README db-scripts + phase1-db).
 7. Commit.
 
-## Phụ lục — lệnh Discovery
+## Phụ lục A — lệnh Discovery
 
 ```sql
 -- Role + group đang thuộc
 SELECT r.rolname AS role, r.rolcanlogin AS login,
-       COALESCE(string_agg(g.rolname, ','), '(khong nhom)') AS thuoc_group
+       COALESCE(string_agg(g.rolname, ','), '(none)') AS groups
 FROM pg_roles r
 LEFT JOIN pg_auth_members m ON m.member = r.oid
 LEFT JOIN pg_roles g ON g.oid = m.roleid
@@ -158,4 +167,43 @@ SELECT tablename, tableowner FROM pg_tables WHERE tablename LIKE 'licasi_%';
 -- Role có đặc quyền admin
 SELECT rolname, rolsuper, rolcreaterole, rolcreatedb
 FROM pg_roles WHERE rolsuper OR rolcreaterole OR rolcreatedb ORDER BY rolsuper DESC, rolname;
+```
+
+## Phụ lục B — Truy vấn cho tool `perm` (output tiếng Anh)
+
+**Mức 1 — tóm tắt toàn bộ user** (`axdb.sh perm <db>`):
+```sql
+SELECT r.rolname AS role,
+       CASE WHEN r.rolsuper THEN 't' ELSE 'f' END AS super,
+       COALESCE(string_agg(DISTINCT g.rolname, ', ' ORDER BY g.rolname), '(none)') AS groups,
+       COALESCE(string_agg(DISTINCT
+         CASE
+           WHEN g.rolname LIKE '%\_readwrite' THEN regexp_replace(g.rolname,'_readwrite$','')||': RW'
+           WHEN g.rolname LIKE '%\_readonly'  THEN regexp_replace(g.rolname,'_readonly$','') ||': RO'
+         END, ', '), CASE WHEN r.rolsuper THEN 'ALL' ELSE '-' END) AS schema_access
+FROM pg_roles r
+LEFT JOIN pg_auth_members m ON m.member = r.oid
+LEFT JOIN pg_roles g ON g.oid = m.roleid
+WHERE r.rolcanlogin AND r.rolname NOT LIKE 'pg\_%'
+GROUP BY r.rolname, r.rolsuper
+ORDER BY r.rolsuper DESC, r.rolname;
+```
+
+**Mức 2 — drill-down 1 user** (`axdb.sh perm <db> <user>`), tính cả quyền thừa hưởng qua group:
+```sql
+-- :u = tên user
+SELECT n.nspname AS schema, c.relname AS "table",
+       array_to_string(ARRAY[
+         CASE WHEN has_table_privilege(:'u', c.oid, 'SELECT') THEN 'SELECT' END,
+         CASE WHEN has_table_privilege(:'u', c.oid, 'INSERT') THEN 'INSERT' END,
+         CASE WHEN has_table_privilege(:'u', c.oid, 'UPDATE') THEN 'UPDATE' END,
+         CASE WHEN has_table_privilege(:'u', c.oid, 'DELETE') THEN 'DELETE' END
+       ], ',') AS privileges
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE c.relkind = 'r'
+  AND n.nspname NOT IN ('pg_catalog','information_schema')
+  AND (has_table_privilege(:'u', c.oid,'SELECT') OR has_table_privilege(:'u', c.oid,'INSERT')
+    OR has_table_privilege(:'u', c.oid,'UPDATE') OR has_table_privilege(:'u', c.oid,'DELETE'))
+ORDER BY 1,2;
 ```
