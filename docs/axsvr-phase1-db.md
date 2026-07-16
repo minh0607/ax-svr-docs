@@ -470,6 +470,15 @@ Tạo schema cho 1 project (xem thêm `docs/db-scripts/README.md`):
 
 Query chéo schema luôn phải ghi rõ `schema.table` (vd `SELECT * FROM finance.fi_cost`); trong project nhà thì để trần nhờ `search_path = <schema>, public`.
 
+Cấp quyền trên 1 bảng thuộc schema nay tự động cấp luôn USAGE trên schema đó
+(PostgreSQL cần CẢ HAI — thiếu USAGE sẽ gặp lỗi "permission denied for schema x"
+dù `\dp` vẫn hiện quyền trên bảng):
+```bash
+./axdb.sh grant acc AXDEV licasi.licasi_importlog SELECT
+```
+Thu hồi (revoke) quyền trên bảng KHÔNG xóa USAGE của schema (role có thể còn cần
+cho bảng khác). Muốn cắt hẳn cả schema: `REVOKE USAGE ON SCHEMA x FROM acc;`
+
 Gán user vào project (hoặc quyền chéo project) — không cần SQL thô:
 ```bash
 ./axdb.sh grant-group  fi_user finance_readwrite

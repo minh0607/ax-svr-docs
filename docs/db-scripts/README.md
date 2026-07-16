@@ -144,6 +144,15 @@ GRANT finance_readonly TO prod_acc;        -- includes future tables too
 -- queries must qualify the schema: SELECT * FROM finance.fi_cost;
 ```
 
+Granting on a single table in a schema now also grants USAGE on that schema
+(PostgreSQL needs BOTH — without USAGE you get "permission denied for schema x"
+even though \dp shows the table privilege):
+```bash
+./axdb.sh grant acc AXDEV licasi.licasi_importlog SELECT
+```
+Revoking a table privilege does NOT drop the schema USAGE (the role may need it
+for other tables). To cut off a whole schema: `REVOKE USAGE ON SCHEMA x FROM acc;`
+
 Assign a user to a project (or cross-project) — no raw SQL needed:
 ```bash
 ./axdb.sh grant-group  fi_user finance_readwrite

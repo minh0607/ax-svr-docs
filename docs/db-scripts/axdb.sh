@@ -24,6 +24,16 @@ role_exists() { [ "$($PSQL -tAc "SELECT 1 FROM pg_roles    WHERE rolname='$1'" 2
 db_exists()   { [ "$($PSQL -tAc "SELECT 1 FROM pg_database WHERE datname='$1'" 2>/dev/null)" = "1" ]; }
 is_protected_role() { for p in $PROTECTED_ROLES; do [ "$1" = "$p" ] && return 0; done; return 1; }
 
+# Resolve the schema a grant target lives in (for auto-USAGE). Echoes name or nothing.
+_target_schema() {              # <db> <table-expr>
+  local db="$1" tbl="$2"
+  if printf '%s' "$tbl" | grep -qiE '^[[:space:]]*ALL[[:space:]]+TABLES[[:space:]]+IN[[:space:]]+SCHEMA[[:space:]]+'; then
+    printf '%s' "$tbl" | sed -E 's/^[[:space:]]*[Aa][Ll][Ll][[:space:]]+[Tt][Aa][Bb][Ll][Ee][Ss][[:space:]]+[Ii][Nn][[:space:]]+[Ss][Cc][Hh][Ee][Mm][Aa][[:space:]]+//; s/[[:space:]]*;?[[:space:]]*$//'
+    return 0
+  fi
+  $PSQL -d "$db" -tAc "SELECT n.nspname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.oid = to_regclass('$tbl')"
+}
+
 # ---------- commands ----------
 cmd_create_admin() {            # <name>
   local n="${1:-}"; [ -n "$n" ] || read -rp "DB admin name (e.g. dbadmin): " n
@@ -353,6 +363,13 @@ cmd_grant_revoke() {            # <grant|revoke> <role> <db> <table> <privs>
   db_exists "$db" || die "Database '$db' does not exist."
   # $privs/$tbl: bash expand (unquoted heredoc); :"r": psql interpolation
   if [ "$act" = grant ]; then
+    local sch; sch="$(_target_schema "$db" "$tbl")"
+    if [ -n "$sch" ]; then
+      $PSQL -d "$db" -v r="$role" -v s="$sch" <<'SQL'
+GRANT USAGE ON SCHEMA :"s" TO :"r";
+SQL
+      echo ">> GRANT USAGE ON SCHEMA $sch  ->  $role   (required to reach tables inside it)"
+    fi
     $PSQL -d "$db" -v r="$role" <<SQL
 GRANT $privs ON $tbl TO :"r";
 SQL
@@ -362,6 +379,8 @@ SQL
 REVOKE $privs ON $tbl FROM :"r";
 SQL
     echo ">> REVOKE $privs ON $tbl <- $role"
+    echo "   NOTE: USAGE on the schema was left in place (the role may still need it for other tables)."
+    echo "         To cut off the whole schema: REVOKE USAGE ON SCHEMA <schema> FROM $role;"
   fi
 }
 
