@@ -144,6 +144,21 @@ GRANT finance_readonly TO prod_acc;        -- includes future tables too
 -- queries must qualify the schema: SELECT * FROM finance.fi_cost;
 ```
 
+Assign a user to a project (or cross-project) — no raw SQL needed:
+```bash
+./axdb.sh grant-group  fi_user finance_readwrite
+./axdb.sh set-search-path fi_user finance
+./axdb.sh grant-group  prod_acc finance_readonly   # cross-project read
+./axdb.sh revoke-group prod_acc finance_readonly
+```
+
+Inspect / manage schemas:
+```bash
+./axdb.sh show schemas appdb
+./axdb.sh set-schema  appdb public.legacy_t finance   # move a table in, name kept
+./axdb.sh drop-schema appdb finance [--cascade]
+```
+
 View the permission overview:
 ```bash
 ./list-access.sh perm appdb            # summary of all users

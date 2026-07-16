@@ -470,6 +470,21 @@ Tạo schema cho 1 project (xem thêm `docs/db-scripts/README.md`):
 
 Query chéo schema luôn phải ghi rõ `schema.table` (vd `SELECT * FROM finance.fi_cost`); trong project nhà thì để trần nhờ `search_path = <schema>, public`.
 
+Gán user vào project (hoặc quyền chéo project) — không cần SQL thô:
+```bash
+./axdb.sh grant-group  fi_user finance_readwrite
+./axdb.sh set-search-path fi_user finance
+./axdb.sh grant-group  prod_acc finance_readonly   # quyền đọc chéo project
+./axdb.sh revoke-group prod_acc finance_readonly
+```
+
+Xem / quản lý schema:
+```bash
+./axdb.sh show schemas appdb
+./axdb.sh set-schema  appdb public.legacy_t finance   # chuyển bảng vào schema, giữ nguyên tên
+./axdb.sh drop-schema appdb finance [--cascade]
+```
+
 Xem tổng quan quyền của user:
 ```bash
 ./list-access.sh perm appdb            # tóm tắt toàn bộ user

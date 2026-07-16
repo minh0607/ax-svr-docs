@@ -664,10 +664,12 @@ menu() {
  20) Set a user's search_path
  21) Move table into a schema (set-schema)
  22) Drop schema (safe)
+ 23) Create schema for an app (schema)
+ 24) Permission overview (perm)
   0) Exit
 ==========================================
 M
-    read -rp "Select [0-22]: " ch || exit 0
+    read -rp "Select [0-24]: " ch || exit 0
     case "$ch" in
       1) _run cmd_create_admin ;;
       2) _run cmd_create_user_admin ;;
@@ -705,6 +707,8 @@ M
       20) read -rp "User: " u; read -rp "search_path (e.g. finance  or  --reset): " p; _run cmd_set_search_path "$u" "$p" ;;
       21) read -rp "Database: " d; read -rp "Table (or schema.table): " t; read -rp "Target schema: " s; _run cmd_set_schema "$d" "$t" "$s" ;;
       22) read -rp "Database: " d; read -rp "Schema: " s; read -rp "Cascade? [Enter=no / --cascade]: " m; _run cmd_drop_schema "$d" "$s" "${m:-}" ;;
+      23) read -rp "Schema/app name: " s; read -rp "Database: " d; read -rp "Owner (empty=db owner): " o; _run cmd_schema "$s" "$d" "$o" ;;
+      24) read -rp "Database: " d; read -rp "User (empty=summary of all): " u; _run cmd_perm "$d" "$u" ;;
       0) echo "Bye."; exit 0 ;;
       *) echo "Invalid choice." ;;
     esac
