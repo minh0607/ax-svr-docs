@@ -793,17 +793,20 @@ menu() {
  15) Change table owner (set-owner)
  16) Change database owner (set-db-owner)
  17) Role dashboard (user/group access)
- 18) Show / inspect (dbs/tables/structure/owner/perms)
- 19) Add / remove user to a group (grant-group / revoke-group)
- 20) Set a user's search_path
- 21) Move table into a schema (set-schema)
+ 18) Show / inspect (dbs/tables/structure/owner/perms/schemas)
+ 19) Create schema for an app (schema)
+ 20) Move table into a schema (set-schema)
+ 21) Rename schema (+groups, +search_path)
  22) Drop schema (safe)
- 23) Create schema for an app (schema)
- 24) Permission overview (perm)
+ 23) Rename table
+ 24) Add / remove user to a group (grant-group / revoke-group)
+ 25) Set a user's search_path
+ 26) Rename user (+migrate IP pin)
+ 27) Permission overview (perm)
   0) Exit
 ==========================================
 M
-    read -rp "Select [0-24]: " ch || exit 0
+    read -rp "Select [0-27]: " ch || exit 0
     case "$ch" in
       1) _run cmd_create_admin ;;
       2) _run cmd_create_user_admin ;;
@@ -837,12 +840,15 @@ M
             schemas)   read -rp "Database: " d; _run cmd_show schemas "$d";;
             *)         echo "Invalid.";;
           esac ;;
-      19) read -rp "Action [grant/revoke]: " a; read -rp "User: " u; read -rp "Group: " g; _run cmd_grant_group "$a" "$u" "$g" ;;
-      20) read -rp "User: " u; read -rp "search_path (e.g. finance  or  --reset): " p; _run cmd_set_search_path "$u" "$p" ;;
-      21) read -rp "Database: " d; read -rp "Table (or schema.table): " t; read -rp "Target schema: " s; _run cmd_set_schema "$d" "$t" "$s" ;;
+      19) read -rp "Schema/app name: " s; read -rp "Database: " d; read -rp "Owner (empty=db owner): " o; _run cmd_schema "$s" "$d" "$o" ;;
+      20) read -rp "Database: " d; read -rp "Table (or schema.table): " t; read -rp "Target schema: " s; _run cmd_set_schema "$d" "$t" "$s" ;;
+      21) read -rp "Database: " d; read -rp "Old schema: " o; read -rp "New schema: " n; _run cmd_rename_schema "$d" "$o" "$n" ;;
       22) read -rp "Database: " d; read -rp "Schema: " s; read -rp "Cascade? [Enter=no / --cascade]: " m; _run cmd_drop_schema "$d" "$s" "${m:-}" ;;
-      23) read -rp "Schema/app name: " s; read -rp "Database: " d; read -rp "Owner (empty=db owner): " o; _run cmd_schema "$s" "$d" "$o" ;;
-      24) read -rp "Database: " d; read -rp "User (empty=summary of all): " u; _run cmd_perm "$d" "$u" ;;
+      23) read -rp "Database: " d; read -rp "Table (or schema.table): " t; read -rp "New table name: " n; _run cmd_rename_table "$d" "$t" "$n" ;;
+      24) read -rp "Action [grant/revoke]: " a; read -rp "User: " u; read -rp "Group: " g; _run cmd_grant_group "$a" "$u" "$g" ;;
+      25) read -rp "User: " u; read -rp "search_path (e.g. finance  or  --reset): " p; _run cmd_set_search_path "$u" "$p" ;;
+      26) read -rp "Old username: " o; read -rp "New username: " n; _run cmd_rename_user "$o" "$n" ;;
+      27) read -rp "Database: " d; read -rp "User (empty=summary of all): " u; _run cmd_perm "$d" "$u" ;;
       0) echo "Bye."; exit 0 ;;
       *) echo "Invalid choice." ;;
     esac

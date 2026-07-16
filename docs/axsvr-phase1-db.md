@@ -485,6 +485,14 @@ Xem / quản lý schema:
 ./axdb.sh drop-schema appdb finance [--cascade]
 ```
 
+Đổi tên (mỗi lệnh tự xử lý luôn phần phụ thuộc vào tên cũ):
+```bash
+./axdb.sh rename-table  appdb finance.fi_cost fi_expense   # chỉ đổi tên bảng; schema giữ nguyên
+./axdb.sh rename-schema appdb finance fin                  # tự đổi tên fin_readonly/fin_readwrite + patch search_path của role
+./axdb.sh rename-user   old_user new_user                  # tự chuyển ghim IP (pg_hba pin) sang tên mới (chế độ file)
+```
+3 hệ quả được xử lý tự động: đổi tên group đi kèm, patch `search_path` của role, chuyển ghim IP. Lưu ý: đổi tên KHÔNG tự cập nhật code ứng dụng / connection string — phải tự sửa các chỗ đó.
+
 Xem tổng quan quyền của user:
 ```bash
 ./list-access.sh perm appdb            # tóm tắt toàn bộ user

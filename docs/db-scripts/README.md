@@ -159,6 +159,14 @@ Inspect / manage schemas:
 ./axdb.sh drop-schema appdb finance [--cascade]
 ```
 
+Rename things (each also fixes what depends on the name):
+```bash
+./axdb.sh rename-table  appdb finance.fi_cost fi_expense   # table only; schema kept
+./axdb.sh rename-schema appdb finance fin                  # also renames fin_readonly/fin_readwrite + patches role search_path
+./axdb.sh rename-user   old_user new_user                  # also migrates the bind-ip pg_hba pin (file mode)
+```
+Caveat: renaming does NOT update application code / connection strings — update those yourself.
+
 View the permission overview:
 ```bash
 ./list-access.sh perm appdb            # summary of all users
