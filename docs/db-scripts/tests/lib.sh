@@ -14,9 +14,36 @@ dq() { docker exec -i "$PG_CONTAINER" psql -U postgres -tA "$@"; }
 pg_up() {
   docker rm -f "$PG_CONTAINER" >/dev/null 2>&1 || true
   docker run -d --name "$PG_CONTAINER" -e POSTGRES_PASSWORD=postgres "$PG_IMAGE" >/dev/null
-  # Wait for readiness (sleep runs INSIDE the container).
-  docker exec "$PG_CONTAINER" bash -c 'for i in $(seq 1 60); do pg_isready -U postgres >/dev/null 2>&1 && exit 0; sleep 0.5; done; exit 1' \
-    || { echo "postgres not ready" >&2; return 1; }
+
+  # The official postgres image's entrypoint runs initdb, brings up a
+  # TEMPORARY localhost-only server to execute init scripts, shuts that
+  # server down, then execs the real long-running server. pg_isready can
+  # succeed against the temporary server, so we must not rely on it alone:
+  # first wait for the init phase to finish, then confirm the REAL server
+  # answers an actual query (not just a readiness ping).
+
+  # Step 1: wait for the init phase to complete (temp server done).
+  # `docker logs` is read from the host; the sleep between polls still
+  # runs INSIDE the container so the host shell never blocks foreground.
+  local init_done=""
+  for i in $(seq 1 60); do
+    if docker logs "$PG_CONTAINER" 2>&1 | grep -q "PostgreSQL init process complete"; then
+      init_done=1
+      break
+    fi
+    docker exec "$PG_CONTAINER" sleep 0.5
+  done
+  [ -n "$init_done" ] || { echo "postgres init did not complete" >&2; return 1; }
+
+  # Step 2: wait for the REAL server to answer a genuine query
+  # (pg_isready alone can succeed against the temporary init server).
+  for i in $(seq 1 60); do
+    docker exec -i "$PG_CONTAINER" psql -U postgres -tAc "SELECT 1" >/dev/null 2>&1 && return 0
+    docker exec "$PG_CONTAINER" sleep 0.5
+  done
+
+  echo "postgres not ready" >&2
+  return 1
 }
 
 pg_down() { docker rm -f "$PG_CONTAINER" >/dev/null 2>&1 || true; }
