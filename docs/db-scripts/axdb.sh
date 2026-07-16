@@ -250,6 +250,35 @@ SQL
   fi
 }
 
+cmd_set_search_path() {         # <user> <schema[,schema2]|--reset>
+  local user="${1:-}" path="${2:-}"
+  [ -n "$user" ] && [ -n "$path" ] || die "Usage: axdb.sh set-search-path <user> <schema[,schema2]|--reset>"
+  role_exists "$user" || die "Role '$user' does not exist."
+  if [ "$path" = "--reset" ]; then
+    $PSQL -v u="$user" <<'SQL'
+ALTER ROLE :"u" RESET search_path;
+SQL
+    echo ">> search_path reset for $user"
+    return 0
+  fi
+  # Build a quoted identifier list; append "public" if the caller did not include it.
+  local -a parts=(); local p seen=0
+  IFS=',' read -ra raw <<< "$path"
+  for p in "${raw[@]}"; do
+    p="${p// /}"; [ -z "$p" ] && continue
+    [ "$p" = public ] && seen=1
+    parts+=("\"$p\"")
+  done
+  [ "${#parts[@]}" -gt 0 ] || die "No schema given."
+  [ "$seen" = 1 ] || parts+=('"public"')
+  local joined; joined="$(IFS=,; echo "${parts[*]}")"
+  # $joined is bash-expanded into the (unquoted) heredoc, like cmd_grant_revoke does with identifiers.
+  $PSQL -v u="$user" <<SQL
+ALTER ROLE :"u" SET search_path = $joined;
+SQL
+  echo ">> search_path for $user set to: $joined"
+}
+
 cmd_passwd() {                  # <role>
   local n="${1:-}"; [ -n "$n" ] || read -rp "Role: " n
   role_exists "$n" || die "Role '$n' does not exist."
@@ -532,6 +561,7 @@ axdb.sh — PostgreSQL administration (AX Svr)
   revoke <role> <db> <table> "<privs>"        Revoke privileges
   grant-group  <user> <group>                 Add a user to a group (role membership: project / cross-project)
   revoke-group <user> <group>                 Remove a user from a group
+  set-search-path <user> <schema[,schema2]|--reset>   Set a user's search_path (auto-appends public); --reset clears it
   set-owner <db> <table> <owner>              Change table owner (new owner gets full structural control)
   set-db-owner <db> <owner>                   Change database owner
   passwd <role>                               Change password (reset password)
@@ -583,10 +613,11 @@ menu() {
  17) Role dashboard (user/group access)
  18) Show / inspect (dbs/tables/structure/owner/perms)
  19) Add / remove user to a group (grant-group / revoke-group)
+ 20) Set a user's search_path
   0) Exit
 ==========================================
 M
-    read -rp "Select [0-19]: " ch || exit 0
+    read -rp "Select [0-20]: " ch || exit 0
     case "$ch" in
       1) _run cmd_create_admin ;;
       2) _run cmd_create_user_admin ;;
@@ -620,6 +651,7 @@ M
             *)         echo "Invalid.";;
           esac ;;
       19) read -rp "Action [grant/revoke]: " a; read -rp "User: " u; read -rp "Group: " g; _run cmd_grant_group "$a" "$u" "$g" ;;
+      20) read -rp "User: " u; read -rp "search_path (e.g. finance  or  --reset): " p; _run cmd_set_search_path "$u" "$p" ;;
       0) echo "Bye."; exit 0 ;;
       *) echo "Invalid choice." ;;
     esac
@@ -643,6 +675,7 @@ case "$cmd" in
   revoke)             cmd_grant_revoke revoke "$@";;
   grant-group)        cmd_grant_group grant "$@";;
   revoke-group)       cmd_grant_group revoke "$@";;
+  set-search-path)    cmd_set_search_path "$@";;
   set-owner)          cmd_set_owner "$@";;
   set-db-owner)       cmd_set_db_owner "$@";;
   passwd)             cmd_passwd "$@";;
