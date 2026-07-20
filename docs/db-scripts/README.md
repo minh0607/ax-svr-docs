@@ -185,6 +185,15 @@ View the permission overview:
 
 Note: default privileges are tied to the owner — always create tables as the actual owner of the schema/DB.
 
+Schema-level privileges (rarely needed directly — prefer groups — but available):
+```bash
+./axdb.sh grant-schema  builder appdb finance CREATE   # let a role create objects in a schema
+./axdb.sh revoke-schema builder appdb finance CREATE
+./axdb.sh schema-perm   appdb finance                  # who holds USAGE/CREATE on the schema (effective)
+```
+Note: `grant`/`grant-group` already handle USAGE for the normal flow; use grant-schema for CREATE
+or for granting USAGE to a role outside the group model.
+
 ## Pin an account to specific IPs (`bind-user-ip.sh`)
 
 IPs are **not** set on the account — they are set in `pg_hba.conf`. This script manages that for you:

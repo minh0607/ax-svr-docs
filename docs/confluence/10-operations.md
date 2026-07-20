@@ -34,6 +34,13 @@ Remove it later with `./axdb.sh revoke-group prod_acc finance_readonly`.
 ./axdb.sh perm AXDEV fi_user    # every table fi_user can reach + effective privileges
 ```
 
+## Debug "permission denied for schema"
+
+```bash
+./axdb.sh schema-perm AXDEV finance          # does the role have USAGE? (effective, incl. via group)
+./axdb.sh grant-schema <role> AXDEV finance USAGE   # grant it directly if needed
+```
+
 ## Move an existing table into a schema without breaking the app
 
 Full worked procedure: **`docs/db-scripts/runbook-schema-migration.md`** (used to move the `licasi_*` tables from `public` into a `licasi` schema). The pattern:

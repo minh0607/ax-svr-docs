@@ -508,3 +508,13 @@ Xem tổng quan quyền của user:
 ./list-access.sh perm appdb prod_acc   # chi tiết từng bảng cho 1 user
 # tương đương: ./axdb.sh perm appdb [user]
 ```
+
+Cấp/thu hồi quyền cấp schema (ít khi cần trực tiếp — ưu tiên dùng group — nhưng vẫn có sẵn):
+```bash
+./axdb.sh grant-schema  builder appdb finance CREATE   # cho role quyền tạo object trong schema
+./axdb.sh revoke-schema builder appdb finance CREATE
+./axdb.sh schema-perm   appdb finance                  # ai đang có USAGE/CREATE trên schema (effective)
+```
+Lưu ý: `grant`/`grant-group` đã tự lo USAGE cho luồng thông thường; dùng `grant-schema` khi cần CREATE
+hoặc khi cần cấp USAGE cho một role nằm ngoài mô hình group. `schema-perm` dùng để debug lỗi
+`permission denied for schema`.

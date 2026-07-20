@@ -53,6 +53,8 @@ Three layers, never mixed:
 | Set a user's search_path (so app code needs no schema prefix) | `./axdb.sh set-search-path <user> <schema>` |
 | Grant on a table (auto-grants USAGE on its schema) | `./axdb.sh grant <role> <db> <table> "<privs>"` |
 | Revoke a table privilege | `./axdb.sh revoke <role> <db> <table> "<privs>"` |
+| Grant / revoke a schema-level privilege (USAGE/CREATE) | `./axdb.sh grant-schema <role> <db> <schema> <priv>` · `revoke-schema` |
+| Show who holds USAGE/CREATE on a schema | `./axdb.sh schema-perm <db> <schema>` |
 | Permission overview | `./axdb.sh perm <db>` (summary) · `perm <db> <user>` (per-table) |
 | List / inspect | `./axdb.sh list ...` · `show dbs\|tables\|schemas\|structure\|owner\|perms` |
 | Move a table into a schema (name kept) | `./axdb.sh set-schema <db> <table> <schema>` |
