@@ -402,6 +402,29 @@ SQL
   fi
 }
 
+cmd_grant_schema() {            # <grant|revoke> <role> <db> <schema> <USAGE|CREATE|ALL>
+  local act="$1" role="${2:-}" db="${3:-}" sch="${4:-}" priv="${5:-}"
+  [ -n "$role" ] && [ -n "$db" ] && [ -n "$sch" ] && [ -n "$priv" ] \
+    || die "Usage: axdb.sh {grant-schema|revoke-schema} <role> <db> <schema> <USAGE|CREATE|ALL>"
+  role_exists "$role" || die "Role '$role' does not exist."
+  db_exists "$db"     || die "Database '$db' does not exist."
+  [ "$($PSQL -d "$db" -tAc "SELECT 1 FROM information_schema.schemata WHERE schema_name='$sch'")" = "1" ] \
+    || die "Schema '$sch' does not exist in '$db'."
+  local p; p="$(printf '%s' "$priv" | tr '[:lower:]' '[:upper:]')"
+  case "$p" in USAGE|CREATE|ALL) ;; *) die "Privilege must be USAGE, CREATE, or ALL (got '$priv').";; esac
+  if [ "$act" = grant ]; then
+    $PSQL -d "$db" -v r="$role" -v s="$sch" <<SQL
+GRANT $p ON SCHEMA :"s" TO :"r";
+SQL
+    echo ">> GRANT $p ON SCHEMA $sch -> $role (db: $db)"
+  else
+    $PSQL -d "$db" -v r="$role" -v s="$sch" <<SQL
+REVOKE $p ON SCHEMA :"s" FROM :"r";
+SQL
+    echo ">> REVOKE $p ON SCHEMA $sch <- $role (db: $db)"
+  fi
+}
+
 cmd_set_search_path() {         # <user> <schema[,schema2]|--reset>
   local user="${1:-}" path="${2:-}"
   [ -n "$user" ] && [ -n "$path" ] || die "Usage: axdb.sh set-search-path <user> <schema[,schema2]|--reset>"
@@ -841,6 +864,8 @@ axdb.sh — PostgreSQL administration (AX Svr)
   revoke <role> <db> <table> "<privs>"        Revoke privileges
   grant-group  <user> <group>                 Add a user to a group (role membership: project / cross-project)
   revoke-group <user> <group>                 Remove a user from a group
+  grant-schema  <role> <db> <schema> <USAGE|CREATE|ALL>   Grant a schema-level privilege to a role
+  revoke-schema <role> <db> <schema> <USAGE|CREATE|ALL>   Revoke a schema-level privilege
   set-search-path <user> <schema[,schema2]|--reset>   Set a user's search_path (auto-appends public); --reset clears it
   set-owner <db> <table> <owner>              Change table owner (new owner gets full structural control)
   set-db-owner <db> <owner>                   Change database owner
@@ -907,10 +932,11 @@ menu() {
  25) Set a user's search_path
  26) Rename user (+migrate IP pin)
  27) Permission overview (perm)
+ 28) Grant / revoke a SCHEMA privilege (USAGE/CREATE)
   0) Exit
 ==========================================
 M
-    read -rp "Select [0-27]: " ch || exit 0
+    read -rp "Select [0-28]: " ch || exit 0
     case "$ch" in
       1) _run cmd_create_admin ;;
       2) _run cmd_create_user_admin ;;
@@ -953,6 +979,7 @@ M
       25) read -rp "User: " u; read -rp "search_path (e.g. finance  or  --reset): " p; _run cmd_set_search_path "$u" "$p" ;;
       26) read -rp "Old username: " o; read -rp "New username: " n; _run cmd_rename_user "$o" "$n" ;;
       27) read -rp "Database: " d; read -rp "User (empty=summary of all): " u; _run cmd_perm "$d" "$u" ;;
+      28) read -rp "Action [grant/revoke]: " a; read -rp "Role: " r; read -rp "Database: " d; read -rp "Schema: " s; read -rp "Privilege [USAGE/CREATE/ALL]: " p; _run cmd_grant_schema "$a" "$r" "$d" "$s" "$p" ;;
       0) echo "Bye."; exit 0 ;;
       *) echo "Invalid choice." ;;
     esac
@@ -976,6 +1003,8 @@ case "$cmd" in
   revoke)             cmd_grant_revoke revoke "$@";;
   grant-group)        cmd_grant_group grant "$@";;
   revoke-group)       cmd_grant_group revoke "$@";;
+  grant-schema)       cmd_grant_schema grant "$@";;
+  revoke-schema)      cmd_grant_schema revoke "$@";;
   set-search-path)    cmd_set_search_path "$@";;
   set-owner)          cmd_set_owner "$@";;
   set-schema)         cmd_set_schema "$@";;
