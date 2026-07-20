@@ -425,6 +425,25 @@ SQL
   fi
 }
 
+cmd_schema_perm() {            # <db> <schema>
+  local db="${1:-}" sch="${2:-}"
+  [ -n "$db" ] && [ -n "$sch" ] || die "Usage: axdb.sh schema-perm <db> <schema>"
+  db_exists "$db" || die "Database '$db' does not exist."
+  [ "$($PSQL -d "$db" -tAc "SELECT 1 FROM information_schema.schemata WHERE schema_name='$sch'")" = "1" ] \
+    || die "Schema '$sch' does not exist in '$db'."
+  $PSQL -d "$db" -v s="$sch" <<'SQL'
+SELECT r.rolname AS role,
+       CASE WHEN r.rolcanlogin THEN 'login' ELSE 'group' END AS type,
+       CASE WHEN has_schema_privilege(r.rolname, :'s', 'USAGE')  THEN 'yes' ELSE '-' END AS usage_priv,
+       CASE WHEN has_schema_privilege(r.rolname, :'s', 'CREATE') THEN 'yes' ELSE '-' END AS create_priv
+FROM pg_roles r
+WHERE r.rolname NOT LIKE 'pg\_%' AND NOT r.rolsuper
+  AND (has_schema_privilege(r.rolname, :'s','USAGE') OR has_schema_privilege(r.rolname, :'s','CREATE'))
+ORDER BY r.rolcanlogin DESC, r.rolname;
+SQL
+  echo "(superusers omitted — they bypass schema ACL; 'yes' may be inherited via a group)"
+}
+
 cmd_set_search_path() {         # <user> <schema[,schema2]|--reset>
   local user="${1:-}" path="${2:-}"
   [ -n "$user" ] && [ -n "$path" ] || die "Usage: axdb.sh set-search-path <user> <schema[,schema2]|--reset>"
@@ -866,6 +885,7 @@ axdb.sh — PostgreSQL administration (AX Svr)
   revoke-group <user> <group>                 Remove a user from a group
   grant-schema  <role> <db> <schema> <USAGE|CREATE|ALL>   Grant a schema-level privilege to a role
   revoke-schema <role> <db> <schema> <USAGE|CREATE|ALL>   Revoke a schema-level privilege
+  schema-perm <db> <schema>                   Show which roles hold USAGE/CREATE on a schema (effective)
   set-search-path <user> <schema[,schema2]|--reset>   Set a user's search_path (auto-appends public); --reset clears it
   set-owner <db> <table> <owner>              Change table owner (new owner gets full structural control)
   set-db-owner <db> <owner>                   Change database owner
@@ -933,10 +953,11 @@ menu() {
  26) Rename user (+migrate IP pin)
  27) Permission overview (perm)
  28) Grant / revoke a SCHEMA privilege (USAGE/CREATE)
+ 29) Schema privilege overview (schema-perm)
   0) Exit
 ==========================================
 M
-    read -rp "Select [0-28]: " ch || exit 0
+    read -rp "Select [0-29]: " ch || exit 0
     case "$ch" in
       1) _run cmd_create_admin ;;
       2) _run cmd_create_user_admin ;;
@@ -980,6 +1001,7 @@ M
       26) read -rp "Old username: " o; read -rp "New username: " n; _run cmd_rename_user "$o" "$n" ;;
       27) read -rp "Database: " d; read -rp "User (empty=summary of all): " u; _run cmd_perm "$d" "$u" ;;
       28) read -rp "Action [grant/revoke]: " a; read -rp "Role: " r; read -rp "Database: " d; read -rp "Schema: " s; read -rp "Privilege [USAGE/CREATE/ALL]: " p; _run cmd_grant_schema "$a" "$r" "$d" "$s" "$p" ;;
+      29) read -rp "Database: " d; read -rp "Schema: " s; _run cmd_schema_perm "$d" "$s" ;;
       0) echo "Bye."; exit 0 ;;
       *) echo "Invalid choice." ;;
     esac
@@ -1005,6 +1027,7 @@ case "$cmd" in
   revoke-group)       cmd_grant_group revoke "$@";;
   grant-schema)       cmd_grant_schema grant "$@";;
   revoke-schema)      cmd_grant_schema revoke "$@";;
+  schema-perm)        cmd_schema_perm "$@";;
   set-search-path)    cmd_set_search_path "$@";;
   set-owner)          cmd_set_owner "$@";;
   set-schema)         cmd_set_schema "$@";;

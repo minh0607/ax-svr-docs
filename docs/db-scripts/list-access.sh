@@ -6,6 +6,7 @@
 #   ./list-access.sh members <group>  # members of a group role
 #   ./list-access.sh grants <db>      # table privileges in a db (\dp)
 #   ./list-access.sh perm <db> [user]  # permission overview (summary; or per-table drill-down for a user)
+#   ./list-access.sh schema-perm <db> <schema>   # roles holding USAGE/CREATE on a schema
 source "$(cd "$(dirname "$0")" && pwd)/_common.sh"
 
 CMD="${1:-roles}"
@@ -68,6 +69,23 @@ WHERE c.relkind = 'r'
 ORDER BY 1,2;
 SQL
     fi
+    ;;
+  schema-perm)
+    DB="${2:-}"; SCH="${3:-}"
+    [ -n "$DB" ] && [ -n "$SCH" ] || die "Usage: ./list-access.sh schema-perm <db> <schema>"
+    db_exists "$DB" || die "Database '$DB' does not exist."
+    [ "$($PSQL -d "$DB" -tAc "SELECT 1 FROM information_schema.schemata WHERE schema_name='$SCH'")" = "1" ] \
+      || die "Schema '$SCH' does not exist in '$DB'."
+    $PSQL -d "$DB" -v s="$SCH" <<'SQL'
+SELECT r.rolname AS role,
+       CASE WHEN r.rolcanlogin THEN 'login' ELSE 'group' END AS type,
+       CASE WHEN has_schema_privilege(r.rolname, :'s', 'USAGE')  THEN 'yes' ELSE '-' END AS usage_priv,
+       CASE WHEN has_schema_privilege(r.rolname, :'s', 'CREATE') THEN 'yes' ELSE '-' END AS create_priv
+FROM pg_roles r
+WHERE r.rolname NOT LIKE 'pg\_%' AND NOT r.rolsuper
+  AND (has_schema_privilege(r.rolname, :'s','USAGE') OR has_schema_privilege(r.rolname, :'s','CREATE'))
+ORDER BY r.rolcanlogin DESC, r.rolname;
+SQL
     ;;
   *) die "Invalid command. See the usage at the top of this file.";;
 esac
