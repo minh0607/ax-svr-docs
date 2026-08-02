@@ -29,6 +29,8 @@ sudo systemctl stop patroni
 # 2. partition + format the dedicated disk
 sudo parted -s /dev/sdb mklabel gpt
 sudo parted -s /dev/sdb mkpart primary ext4 0% 100%
+sudo partprobe /dev/sdb && sudo udevadm settle    # force the kernel to create /dev/sdb1 (else "file does not exist")
+lsblk /dev/sdb                                     # confirm the sdb1 line now appears
 sudo mkfs.ext4 -L pgdata /dev/sdb1
 
 # 3. move the on-root data aside, mount the new disk at /data
@@ -60,6 +62,14 @@ sudo rm -rf /data.old                      # ONLY after DB03 is confirmed health
 
 ---
 
+## ⏸ CHECKPOINT after DB03 — verify roles across ALL nodes (from any node)
+```bash
+patronictl -c /etc/patroni/patroni.yml list
+```
+Do NOT touch DB02 until this shows: **1 Leader (running) + 1 Sync Standby (running) + DB03 = Replica running, Lag 0**. If any node is `stopped`/`start failed`, or lag keeps growing, stop and fix first.
+
+---
+
 ## NODE 2 — DB02 (sync standby) — do SECOND
 
 > When DB02 stops, Patroni promotes DB03 (already migrated) to sync — commits keep their zero-loss guarantee.
@@ -75,6 +85,8 @@ sudo systemctl stop patroni
 # 2. partition + format
 sudo parted -s /dev/sdb mklabel gpt
 sudo parted -s /dev/sdb mkpart primary ext4 0% 100%
+sudo partprobe /dev/sdb && sudo udevadm settle    # force the kernel to create /dev/sdb1 (else "file does not exist")
+lsblk /dev/sdb                                     # confirm the sdb1 line now appears
 sudo mkfs.ext4 -L pgdata /dev/sdb1
 
 # 3. move old data aside, mount new disk
@@ -104,6 +116,14 @@ sudo rm -rf /data.old
 
 ---
 
+## ⏸ CHECKPOINT after DB02 — verify roles across ALL nodes (from any node)
+```bash
+patronictl -c /etc/patroni/patroni.yml list
+```
+Do NOT switch over / touch DB01 until: **1 Leader (running) + 1 Sync Standby (running) + 1 Replica running, all Lag 0**, and both migrated nodes (DB02, DB03) are on their new `/data` disk (`./axdb.sh check-storage` OK on each). Only then proceed.
+
+---
+
 ## NODE 3 — DB01 (primary) — do LAST
 
 > Switch leadership away first so DB01 becomes a replica; then the exact same steps.
@@ -120,6 +140,8 @@ sudo systemctl stop patroni
 # 2. partition + format
 sudo parted -s /dev/sdb mklabel gpt
 sudo parted -s /dev/sdb mkpart primary ext4 0% 100%
+sudo partprobe /dev/sdb && sudo udevadm settle    # force the kernel to create /dev/sdb1 (else "file does not exist")
+lsblk /dev/sdb                                     # confirm the sdb1 line now appears
 sudo mkfs.ext4 -L pgdata /dev/sdb1
 
 # 3. move old data aside, mount new disk
