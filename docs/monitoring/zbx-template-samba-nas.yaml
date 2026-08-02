@@ -1,0 +1,76 @@
+zabbix_export:
+  version: '7.4'
+  template_groups:
+    - uuid: f53bf91ddf784269adc9d11a4b9894fb
+      name: Templates/Applications
+  templates:
+    - uuid: 328f23e044b24b4eb34cd0637302b75d
+      template: 'Samba Monitor Template for NAS'
+      name: 'Samba Monitor Template for NAS'
+      description: |
+        Theo doi dich vu Samba tren NAS. Link vao host 'nas'.
+        Can UserParameter tren agent (/etc/zabbix/zabbix_agent2.d/samba.conf):
+          UserParameter=samba.smbd.proc,pgrep -c smbd
+          UserParameter=samba.nmbd.proc,pgrep -c nmbd
+          UserParameter=samba.sessions,sudo /usr/bin/smbstatus -b 2>/dev/null | tail -n +5 | grep -c .
+          UserParameter=samba.locked_files,sudo /usr/bin/smbstatus -L 2>/dev/null | tail -n +5 | grep -c .
+        sudoers: zabbix ALL=(root) NOPASSWD: /usr/bin/smbstatus
+        Disk/inode/network cua NAS lay tu template Linux base. Chi tiet: PREREQUISITES.md muc 5.
+      groups:
+        - name: Templates/Applications
+      items:
+        - uuid: 891b5058d16844a79c1f140124f89bfe
+          name: 'Samba: smbd process count'
+          key: 'samba.smbd.proc'
+          delay: 1m
+          value_type: UNSIGNED
+          description: 'So tien trinh smbd (0 = dich vu file-sharing chet).'
+          tags:
+            - tag: service
+              value: samba
+          triggers:
+            - uuid: a7f36bf9221e4e4b8abc16119090120e
+              expression: 'last(/Samba Monitor Template for NAS/samba.smbd.proc)=0'
+              name: 'Samba smbd DOWN on {HOST.NAME}'
+              priority: HIGH
+              description: 'smbd khong chay -> web server khong mount duoc source.'
+              tags:
+                - tag: service
+                  value: samba
+        - uuid: ce99e0d907ef49f3a435798991024d5e
+          name: 'Samba: nmbd process count'
+          key: 'samba.nmbd.proc'
+          delay: 1m
+          value_type: UNSIGNED
+          description: 'So tien trinh nmbd (NetBIOS). Co the = 0 hop le neu chi dung SMB2/3.'
+          tags:
+            - tag: service
+              value: samba
+          triggers:
+            - uuid: 9b9cc9e75c4a4795ad2341e3e5de0ff0
+              expression: 'last(/Samba Monitor Template for NAS/samba.nmbd.proc)=0'
+              name: 'Samba nmbd DOWN on {HOST.NAME}'
+              priority: WARNING
+              description: 'nmbd khong chay. Neu khong dung NetBIOS thi bo trigger nay.'
+              manual_close: 'YES'
+              tags:
+                - tag: service
+                  value: samba
+        - uuid: 4858219900844b6fbdb2ac67965aa08f
+          name: 'Samba: active sessions'
+          key: 'samba.sessions'
+          delay: 1m
+          value_type: UNSIGNED
+          description: 'So phien SMB dang mo (smbstatus -b).'
+          tags:
+            - tag: service
+              value: samba
+        - uuid: e1b1f2669de440178002161e954858a1
+          name: 'Samba: locked files'
+          key: 'samba.locked_files'
+          delay: 1m
+          value_type: UNSIGNED
+          description: 'So file dang bi khoa (smbstatus -L).'
+          tags:
+            - tag: service
+              value: samba

@@ -121,19 +121,22 @@ UserParameter=keepalived.proc,pgrep -c keepalived
 ---
 
 ## 5. NAS / Samba (dashboard `grafana-ax-nas.json`)
-Không có template Samba chính thức → dùng UserParameter trên **AX-NAS**:
+Không có template Samba chính thức → dùng template tự tạo **`zbx-template-samba-nas.yaml`** ("Samba Monitor Template for NAS"): Templates → Import → Link vào host **nas**. Template gồm item `samba.smbd.proc`/`samba.nmbd.proc`/`samba.sessions`/`samba.locked_files` + trigger smbd/nmbd DOWN (tag `service:samba`).
+
+UserParameter trên agent host **nas** (`/etc/zabbix/zabbix_agent2.d/samba.conf`):
 ```
-# /etc/zabbix/zabbix_agent2.d/samba.conf
 UserParameter=samba.smbd.proc,pgrep -c smbd
 UserParameter=samba.nmbd.proc,pgrep -c nmbd
-UserParameter=samba.sessions,smbstatus -b 2>/dev/null | tail -n +5 | grep -c .
-UserParameter=samba.locked_files,smbstatus -L 2>/dev/null | tail -n +5 | grep -c .
+UserParameter=samba.sessions,sudo /usr/bin/smbstatus -b 2>/dev/null | tail -n +5 | grep -c .
+UserParameter=samba.locked_files,sudo /usr/bin/smbstatus -L 2>/dev/null | tail -n +5 | grep -c .
 ```
-`smbstatus` cần chạy được bởi user `zabbix`: **ưu tiên sudoers hẹp** (đúng mô hình least-privilege của dự án) thay vì chạy agent bằng root:
+`smbstatus` cần root → **sudoers hẹp** (least-privilege, không chạy agent bằng root):
 ```
 zabbix ALL=(root) NOPASSWD: /usr/bin/smbstatus
 ```
-(rồi gọi `sudo smbstatus` trong UserParameter). Disk/inode/network của NAS lấy từ template Linux base sẵn có.
+`sudo systemctl restart zabbix-agent2` → test `zabbix_agent2 -t samba.smbd.proc`. Disk/inode/network của NAS lấy từ template Linux base sẵn có.
+
+> `nmbd` có thể = 0 hợp lệ nếu chỉ dùng SMB2/3 (không NetBIOS) → khi đó bỏ/ack trigger nmbd.
 
 **SMART (tuỳ chọn):** gắn **"SMART disks by Zabbix agent 2"** + cài `smartmontools` → sức khỏe ổ (reallocated sectors, nhiệt độ) — giá trị cao nhất cho file server.
 
