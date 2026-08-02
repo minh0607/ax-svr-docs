@@ -721,7 +721,7 @@
     },
     {
       "type": "stat",
-      "title": "Firewall — Windows (Defender)",
+      "title": "Firewall — Windows (wf.msc)",
       "id": 26,
       "gridPos": {
         "h": 5,

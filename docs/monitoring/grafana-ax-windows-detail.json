@@ -906,7 +906,7 @@
     },
     {
       "type": "stat",
-      "title": "🔥 Firewall (Defender) per host",
+      "title": "🔥 Windows Firewall (wf.msc) per host",
       "id": 52,
       "gridPos": {
         "h": 6,

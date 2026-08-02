@@ -47,7 +47,7 @@ zabbix_export:
       template: 'Firewall Monitor Template for Windows'
       name: 'Firewall Monitor Template for Windows'
       description: |
-        Theo doi Windows Defender Firewall. Can UserParameter tren agent2 (Windows):
+        Theo doi Windows Firewall (wf.msc). Can UserParameter tren agent2 (Windows):
           UserParameter=win.firewall.enabled,powershell -NoProfile -NonInteractive -Command "if(@(Get-NetFirewallProfile | Where-Object {-not $_.Enabled}).Count -eq 0){1}else{0}"
         Dat Timeout=10 trong zabbix_agent2.conf (PowerShell khoi dong cham).
         Chi tiet: runbook-firewall-monitor.md
@@ -55,7 +55,7 @@ zabbix_export:
         - name: Templates/Applications
       items:
         - uuid: a90d1b2478484db9bcb75620d6c60eed
-          name: 'Firewall status (Defender)'
+          name: 'Firewall status (Windows Firewall)'
           key: 'win.firewall.enabled'
           delay: 1m
           value_type: UNSIGNED
@@ -68,9 +68,9 @@ zabbix_export:
           triggers:
             - uuid: 1f3513dd79a24fada2022a83a27befc1
               expression: 'last(/Firewall Monitor Template for Windows/win.firewall.enabled)=0'
-              name: 'Firewall DISABLED (Defender) on {HOST.NAME}'
+              name: 'Firewall DISABLED (Windows Firewall) on {HOST.NAME}'
               priority: HIGH
-              description: 'Co profile Defender Firewall bi tat.'
+              description: 'Co profile Windows Firewall (wf.msc) bi tat.'
               tags:
                 - tag: service
                   value: security

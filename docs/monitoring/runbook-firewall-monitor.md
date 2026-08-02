@@ -1,6 +1,6 @@
-# Runbook: monitor trạng thái firewall (ufw / Windows Defender) qua Zabbix
+# Runbook: monitor trạng thái firewall (ufw / Windows Firewall) qua Zabbix
 
-> Mục tiêu: biết **máy nào firewall đang tắt** (ufw disable / Defender off) → cảnh báo lên SOC wall.
+> Mục tiêu: biết **máy nào firewall đang tắt** (ufw disable / Windows Firewall off) → cảnh báo lên SOC wall.
 > Template OS base KHÔNG có sẵn chỉ số này → thêm UserParameter + item + trigger.
 > Linux: AX-DB01/02/03, NAS, Proxy01/02 · Windows: WEB01/02.
 
@@ -33,13 +33,15 @@ zabbix_agent2 -t ufw.enabled        # phải ra 1 (đang active) hoặc 0
 
 ---
 
-## 2. Windows — Defender Firewall (WEB01/02)
+## 2. Windows — Windows Firewall / wf.msc (WEB01/02)
 **a. UserParameter** — `C:\Program Files\Zabbix Agent 2\zabbix_agent2.d\firewall.conf`
 (hoặc thêm thẳng vào `zabbix_agent2.conf`; đảm bảo có `Include=...\zabbix_agent2.d\*.conf`):
 ```
 UserParameter=win.firewall.enabled,powershell -NoProfile -NonInteractive -Command "if(@(Get-NetFirewallProfile | Where-Object {-not $_.Enabled}).Count -eq 0){1}else{0}"
 ```
 Trả 1 nếu **cả 3 profile** (Domain/Private/Public) đều bật; 0 nếu có bất kỳ profile tắt.
+
+> `Get-NetFirewallProfile` đọc đúng profile của **Windows Firewall (wf.msc)** — KHÔNG phải Microsoft Defender Antivirus (khác hẳn).
 
 **b. Timeout:** PowerShell khởi động chậm → trong `zabbix_agent2.conf` đặt `Timeout=10` (mặc định 3s dễ bị timeout). Restart:
 ```powershell
@@ -68,7 +70,7 @@ Data collection → Hosts → (từng host) → **Items → Create item:**
 
 | Field | Linux | Windows |
 |---|---|---|
-| **Name** | `Firewall status (ufw)` | `Firewall status (Defender)` |
+| **Name** | `Firewall status (ufw)` | `Firewall status (Windows Firewall)` |
 | Key | `ufw.enabled` | `win.firewall.enabled` |
 | Type | Zabbix agent | Zabbix agent |
 | Type of information | Numeric (unsigned) | Numeric (unsigned) |
@@ -83,7 +85,7 @@ Data collection → Hosts → (từng host) → **Items → Create item:**
 # Linux
 last(/{HOST}/ufw.enabled)=0            -> "Firewall DISABLED (ufw) on {HOST.NAME}"
 # Windows
-last(/{HOST}/win.firewall.enabled)=0   -> "Firewall DISABLED (Defender) on {HOST.NAME}"
+last(/{HOST}/win.firewall.enabled)=0   -> "Firewall DISABLED (Windows Firewall) on {HOST.NAME}"
 ```
 - Severity: **High** (hoặc Disaster nếu coi là nghiêm trọng).
 - **Tags:** `service:security` → khớp SOC wall (Problems panel) để drill-down.
