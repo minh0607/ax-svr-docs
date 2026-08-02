@@ -1,0 +1,84 @@
+zabbix_export:
+  version: '7.4'
+  template_groups:
+    - uuid: 06ab04afa12541a794ba451319080e58
+      name: Templates/Applications
+  templates:
+    - uuid: 2165780cdcb844798e27e172328b3da3
+      template: 'Firewall Monitor Template for Ubuntu'
+      name: 'Firewall Monitor Template for Ubuntu'
+      description: |
+        Theo doi trang thai ufw (Ubuntu). Can UserParameter tren agent:
+          UserParameter=ufw.enabled,sudo /usr/sbin/ufw status 2>/dev/null | grep -q "Status: active" && echo 1 || echo 0
+        + sudoers: zabbix ALL=(root) NOPASSWD: /usr/sbin/ufw status
+        Chi tiet: runbook-firewall-monitor.md
+      groups:
+        - name: Templates/Applications
+      items:
+        - uuid: d3e8cbfc2a98433eac96cf7cdf341b96
+          name: 'Firewall status (ufw)'
+          key: 'ufw.enabled'
+          delay: 1m
+          value_type: UNSIGNED
+          description: '1 = ufw active (an toan) · 0 = inactive.'
+          valuemap:
+            name: 'Firewall state'
+          tags:
+            - tag: service
+              value: security
+          triggers:
+            - uuid: b710e414d563441884fb0fc3464ae8c0
+              expression: 'last(/Firewall Monitor Template for Ubuntu/ufw.enabled)=0'
+              name: 'Firewall DISABLED (ufw) on {HOST.NAME}'
+              priority: HIGH
+              description: 'ufw dang tat tren node nay.'
+              tags:
+                - tag: service
+                  value: security
+      valuemaps:
+        - uuid: ed726bd58edf4623919dec55ddd0f4da
+          name: 'Firewall state'
+          mappings:
+            - value: '0'
+              newvalue: 'OFF'
+            - value: '1'
+              newvalue: 'ON'
+    - uuid: 3cfdb35f64244ddaa42bb238d9f0812a
+      template: 'Firewall Monitor Template for Windows'
+      name: 'Firewall Monitor Template for Windows'
+      description: |
+        Theo doi Windows Defender Firewall. Can UserParameter tren agent2 (Windows):
+          UserParameter=win.firewall.enabled,powershell -NoProfile -NonInteractive -Command "if(@(Get-NetFirewallProfile | Where-Object {-not $_.Enabled}).Count -eq 0){1}else{0}"
+        Dat Timeout=10 trong zabbix_agent2.conf (PowerShell khoi dong cham).
+        Chi tiet: runbook-firewall-monitor.md
+      groups:
+        - name: Templates/Applications
+      items:
+        - uuid: a90d1b2478484db9bcb75620d6c60eed
+          name: 'Firewall status (Defender)'
+          key: 'win.firewall.enabled'
+          delay: 1m
+          value_type: UNSIGNED
+          description: '1 = ca 3 profile bat · 0 = co profile tat.'
+          valuemap:
+            name: 'Firewall state'
+          tags:
+            - tag: service
+              value: security
+          triggers:
+            - uuid: 1f3513dd79a24fada2022a83a27befc1
+              expression: 'last(/Firewall Monitor Template for Windows/win.firewall.enabled)=0'
+              name: 'Firewall DISABLED (Defender) on {HOST.NAME}'
+              priority: HIGH
+              description: 'Co profile Defender Firewall bi tat.'
+              tags:
+                - tag: service
+                  value: security
+      valuemaps:
+        - uuid: 2e90ca80c7a6449bbfba8c224de9adc7
+          name: 'Firewall state'
+          mappings:
+            - value: '0'
+              newvalue: 'OFF'
+            - value: '1'
+              newvalue: 'ON'

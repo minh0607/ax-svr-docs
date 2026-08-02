@@ -51,7 +51,19 @@ Restart-Service "Zabbix Agent 2"
 
 ---
 
-## 3. Zabbix — item + trigger
+## 3. Cách nhanh — import template rồi link (khuyên dùng)
+Import **`zbx-template-firewall.yaml`** (gồm 2 template):
+1. Data collection → **Templates → Import** → chọn file → Import.
+2. Link:
+   - **"Firewall Monitor Template for Ubuntu"** → AX-DB01/02/03, NAS, Proxy01/02.
+   - **"Firewall Monitor Template for Windows"** → WEB01/02.
+3. Vẫn cần **UserParameter + sudoers/Timeout** ở mục 1-2 trên từng agent (template chỉ định nghĩa item/trigger, không đẩy config agent).
+
+Mỗi template gồm: item `Firewall status (...)` (1m, value-map **1=ON / 0=OFF**) + trigger **Firewall DISABLED on {HOST.NAME}** (`=0`, High, tag `service:security`).
+
+> Muốn tạo tay thì theo mục 3b + 4 dưới.
+
+## 3b. Zabbix — item + trigger (tạo tay)
 Data collection → Hosts → (từng host) → **Items → Create item:**
 
 | Field | Linux | Windows |
