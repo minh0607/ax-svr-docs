@@ -4,6 +4,20 @@
 > Các dashboard **OS** (Linux/Windows/Fleet/SOC) chạy ngay với template base đang có.
 > Các dashboard **service** dưới đây **chỉ hiện data sau khi gắn template + cấu hình tương ứng**. Sau mỗi bước: kiểm ở **Monitoring → Latest data** thấy giá trị thật rồi mới tin panel.
 
+## Template checklist (tóm tắt)
+
+**Đã gắn sẵn:** `Linux by Zabbix agent` (DB×3, DBDEV, NAS, Proxy×2) · `Windows by Zabbix agent` (WEB01/02) · `ICMP Ping` (Web-VIP).
+
+**Cần gắn thêm (template chính thức Zabbix 7.4):**
+| Template | Host | Dashboard | Kèm theo |
+|---|---|---|---|
+| `PostgreSQL by Zabbix agent 2` | AX-DB01/02/03 (+DBDEV) | 5 | user `zbx_monitor` + pg_hba + `{$PG.*}` (§1) |
+| `Patroni by HTTP` | AX-DB01/02/03 | 5 | mở `:8008` + `{$PATRONI.*}` (§2) |
+| `Nginx by Zabbix agent` | AX-Proxy01/02 | 6 | bật stub_status + `{$NGINX.STUB_STATUS.*}` (§3) |
+| `SMART disks by Zabbix agent 2` *(tuỳ chọn)* | AX-NAS | 7 | cài `smartmontools` (§5) |
+
+**KHÔNG có template chính thức → tự tạo item:** Keepalived (`vip.holder`, `keepalived.proc` — §4) · Samba (`samba.*` — §5) · Backend reachability (`net.tcp.service[http,10.1.1.101/102,80]`) · IIS (`perf_counter[]` — §6) · etcd (`http.agent` :2379/health — §2).
+
 ---
 
 ## 1. PostgreSQL (dashboard `grafana-ax-postgres-patroni.json` — section PostgreSQL)
