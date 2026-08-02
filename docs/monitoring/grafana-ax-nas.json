@@ -1,93 +1,1020 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "graphTooltip": 1,
-  "time": { "from": "now-6h", "to": "now" },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
   "refresh": "1m",
   "title": "AX · NAS / File Share",
-  "tags": ["ax-svr", "zabbix", "nas", "samba"],
+  "tags": [
+    "ax-svr",
+    "zabbix",
+    "nas",
+    "samba"
+  ],
   "schemaVersion": 39,
-  "templating": { "list": [
-    { "name": "ds", "label": "Zabbix datasource", "type": "datasource", "query": "alexanderzobnin-zabbix-datasource", "current": {}, "hide": 0 }
-  ] },
+  "templating": {
+    "list": [
+      {
+        "name": "ds",
+        "label": "Zabbix datasource",
+        "type": "datasource",
+        "query": "alexanderzobnin-zabbix-datasource",
+        "current": {
+          "selected": true,
+          "text": "Zabbix",
+          "value": "Zabbix"
+        },
+        "hide": 0
+      },
+      {
+        "name": "group",
+        "label": "Host group",
+        "type": "query",
+        "hide": 0,
+        "datasource": {
+          "type": "alexanderzobnin-zabbix-datasource",
+          "uid": "${ds}"
+        },
+        "definition": "Zabbix host groups",
+        "query": {
+          "queryType": "group",
+          "group": {
+            "filter": "/.*/"
+          },
+          "host": {
+            "filter": ""
+          },
+          "application": {
+            "filter": ""
+          },
+          "item": {
+            "filter": ""
+          }
+        },
+        "refresh": 1,
+        "sort": 1,
+        "regex": "",
+        "includeAll": true,
+        "allValue": "/.*/",
+        "multi": true,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": []
+      },
+      {
+        "name": "host",
+        "label": "Host",
+        "type": "query",
+        "hide": 0,
+        "datasource": {
+          "type": "alexanderzobnin-zabbix-datasource",
+          "uid": "${ds}"
+        },
+        "definition": "Zabbix hosts (filtered by $group)",
+        "query": {
+          "queryType": "host",
+          "group": {
+            "filter": "$group"
+          },
+          "host": {
+            "filter": "/.*/"
+          },
+          "application": {
+            "filter": ""
+          },
+          "item": {
+            "filter": ""
+          }
+        },
+        "refresh": 1,
+        "sort": 1,
+        "regex": "",
+        "includeAll": true,
+        "allValue": "/AX-NAS/",
+        "multi": true,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": []
+      }
+    ]
+  },
   "__hostFilter": "/AX-NAS/",
   "panels": [
-    { "type": "text", "title": "PREREQUISITES", "id": 1, "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
-      "options": { "mode": "markdown", "content": "**Cần bật trước khi panel có dữ liệu:** UserParameter `samba.smbd.proc`, `samba.nmbd.proc`, `samba.sessions`, `samba.locked_files` trên AX-NAS (đọc qua `pgrep`/`smbstatus` — `smbstatus` cần quyền root hoặc sudoers cho user zabbix, xem note trong spec). Panel Share space / Free inodes dùng item có sẵn trong template **Linux by Zabbix agent** (đã gắn từ Phase 0), không cần thêm gì. Xem §A3 trong spec markdown." } },
-
-    { "type": "row", "title": "Samba service", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 3 }, "id": 2 },
-    { "type": "stat", "title": "smbd up", "id": 3, "gridPos": { "h": 5, "w": 6, "x": 0, "y": 4 }, "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
-      "fieldConfig": { "defaults": { "mappings": [ { "type": "value", "options": { "0": { "text": "DOWN", "color": "red", "index": 0 } } } ], "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] } }, "overrides": [] },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name", "orientation": "horizontal" },
-      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-NAS/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "samba.smbd.proc" }, "functions": [] } ] },
-    { "type": "stat", "title": "nmbd up", "id": 4, "gridPos": { "h": 5, "w": 6, "x": 6, "y": 4 }, "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
-      "fieldConfig": { "defaults": { "mappings": [ { "type": "value", "options": { "0": { "text": "DOWN", "color": "orange", "index": 0 } } } ], "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "orange", "value": null }, { "color": "green", "value": 1 } ] } }, "overrides": [] },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name", "orientation": "horizontal" },
-      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-NAS/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "samba.nmbd.proc" }, "functions": [] } ] },
-    { "type": "stat", "title": "Active Samba sessions", "id": 5, "gridPos": { "h": 5, "w": 6, "x": 12, "y": 4 }, "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
-      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "none" } }, "overrides": [] },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "none", "graphMode": "area", "textMode": "value_and_name", "orientation": "horizontal" },
-      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-NAS/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "samba.sessions" }, "functions": [] } ] },
-    { "type": "stat", "title": "Locked / open files", "id": 6, "gridPos": { "h": 5, "w": 6, "x": 18, "y": 4 }, "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
-      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "none" } }, "overrides": [] },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "none", "graphMode": "none", "textMode": "value_and_name", "orientation": "horizontal" },
-      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-NAS/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "samba.locked_files" }, "functions": [] } ] },
-
-    { "type": "row", "title": "Storage", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 }, "id": 10 },
-    { "type": "bargauge", "title": "Share space used % (all mounts)", "id": 11, "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 }, "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
-      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 80 }, { "color": "red", "value": 90 } ] } }, "overrides": [] },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "displayMode": "gradient", "orientation": "horizontal" },
-      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-NAS/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/: Space utilization/" }, "functions": [] } ] },
-    { "type": "bargauge", "title": "Free inodes % (all mounts)", "id": 12, "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 }, "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
-      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "orange", "value": 10 }, { "color": "green", "value": 20 } ] } }, "overrides": [] },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "displayMode": "gradient", "orientation": "horizontal" },
-      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-NAS/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/Free inodes in %/" }, "functions": [] } ] },
-
-    { "type": "row", "title": "Network & Disk I/O", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 }, "id": 20 },
-    { "type": "timeseries", "title": "Interface throughput (bits in/out)", "id": 21, "gridPos": { "h": 8, "w": 12, "x": 0, "y": 19 }, "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
-      "fieldConfig": { "defaults": { "unit": "bps", "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
-      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi" } },
-      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-NAS/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/Bits (received|sent)/" }, "functions": [] } ] },
-    { "type": "timeseries", "title": "Disk read / write rate", "id": 22, "gridPos": { "h": 8, "w": 12, "x": 12, "y": 19 }, "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
-      "fieldConfig": { "defaults": { "unit": "Bps", "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
-      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi" } },
-      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-NAS/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/Disk (read|write) rate/" }, "functions": [] } ] },
-
-    { "type": "row", "title": "Host resources", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 }, "id": 30 },
-    { "type": "gauge", "title": "CPU utilization", "id": 31, "gridPos": { "h": 6, "w": 12, "x": 0, "y": 28 }, "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
-      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 80 }, { "color": "red", "value": 90 } ] } }, "overrides": [] },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true, "orientation": "auto" },
-      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-NAS/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "CPU utilization" }, "functions": [] } ] },
-    { "type": "gauge", "title": "Memory utilization", "id": 32, "gridPos": { "h": 6, "w": 12, "x": 12, "y": 28 }, "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
-      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 75 }, { "color": "red", "value": 90 } ] } }, "overrides": [] },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true, "orientation": "auto" },
-      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-NAS/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "Memory utilization" }, "functions": [] } ] },
-
-    { "type": "row", "title": "Active problems — NAS scope", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 34 }, "id": 40 },
     {
-      "type": "alexanderzobnin-zabbix-triggers-panel", "title": "Active problems — NAS", "id": 41,
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 35 },
-      "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
-      "targets": [ {
-        "refId": "A", "queryType": "problems",
-        "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
-        "group": { "filter": "/.*/" }, "host": { "filter": "/AX-NAS/" }, "application": { "filter": "" }, "proxy": { "filter": "" }, "trigger": { "filter": "" },
-        "showProblems": "problems",
-        "options": { "sortProblems": "priority", "acknowledged": 2, "minSeverity": 2, "hostsInMaintenance": false, "limit": 100 }
-      } ],
+      "type": "text",
+      "title": "PREREQUISITES",
+      "id": 1,
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "options": {
-        "layout": "table", "sortProblems": "priority", "pageSize": 20,
-        "highlightNewerThan": "1h", "problemTimeline": true,
-        "hostField": true, "hostTechNameField": false, "hostGroups": false, "statusField": true, "statusIcon": true,
-        "severityField": true, "ackField": true, "ageField": true, "descriptionField": true, "descriptionAtNewLine": false,
-        "showTags": true, "allowDangerousHTML": false,
+        "mode": "markdown",
+        "content": "**Cần bật trước khi panel có dữ liệu:** UserParameter `samba.smbd.proc`, `samba.nmbd.proc`, `samba.sessions`, `samba.locked_files` trên AX-NAS (đọc qua `pgrep`/`smbstatus` — `smbstatus` cần quyền root hoặc sudoers cho user zabbix, xem note trong spec). Panel Share space / Free inodes dùng item có sẵn trong template **Linux by Zabbix agent** (đã gắn từ Phase 0), không cần thêm gì. Xem §A3 trong spec markdown."
+      }
+    },
+    {
+      "type": "row",
+      "title": "Samba service",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 3
+      },
+      "id": 2
+    },
+    {
+      "type": "stat",
+      "title": "smbd up",
+      "id": 3,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 4
+      },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "${ds}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red",
+                  "index": 0
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "orientation": "horizontal"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "0",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "${ds}"
+          },
+          "group": {
+            "filter": "$group"
+          },
+          "host": {
+            "filter": "$host"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "samba.smbd.proc"
+          },
+          "functions": []
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "nmbd up",
+      "id": 4,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 4
+      },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "${ds}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "orange",
+                  "index": 0
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "orange",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "orientation": "horizontal"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "0",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "${ds}"
+          },
+          "group": {
+            "filter": "$group"
+          },
+          "host": {
+            "filter": "$host"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "samba.nmbd.proc"
+          },
+          "functions": []
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Active Samba sessions",
+      "id": 5,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 4
+      },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "${ds}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "none"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "none",
+        "graphMode": "area",
+        "textMode": "value_and_name",
+        "orientation": "horizontal"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "0",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "${ds}"
+          },
+          "group": {
+            "filter": "$group"
+          },
+          "host": {
+            "filter": "$host"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "samba.sessions"
+          },
+          "functions": []
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Locked / open files",
+      "id": 6,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 4
+      },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "${ds}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "none"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "orientation": "horizontal"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "0",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "${ds}"
+          },
+          "group": {
+            "filter": "$group"
+          },
+          "host": {
+            "filter": "$host"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "samba.locked_files"
+          },
+          "functions": []
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Storage",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "id": 10
+    },
+    {
+      "type": "bargauge",
+      "title": "Share space used % (all mounts)",
+      "id": 11,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "${ds}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "displayMode": "gradient",
+        "orientation": "horizontal"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "0",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "${ds}"
+          },
+          "group": {
+            "filter": "$group"
+          },
+          "host": {
+            "filter": "$host"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "/: Space utilization/"
+          },
+          "functions": []
+        }
+      ]
+    },
+    {
+      "type": "bargauge",
+      "title": "Free inodes % (all mounts)",
+      "id": 12,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "${ds}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 10
+              },
+              {
+                "color": "green",
+                "value": 20
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "displayMode": "gradient",
+        "orientation": "horizontal"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "0",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "${ds}"
+          },
+          "group": {
+            "filter": "$group"
+          },
+          "host": {
+            "filter": "$host"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "/Free inodes in %/"
+          },
+          "functions": []
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Network & Disk I/O",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "id": 20
+    },
+    {
+      "type": "timeseries",
+      "title": "Interface throughput (bits in/out)",
+      "id": 21,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 19
+      },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "${ds}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bps",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "0",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "${ds}"
+          },
+          "group": {
+            "filter": "$group"
+          },
+          "host": {
+            "filter": "$host"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "/Bits (received|sent)/"
+          },
+          "functions": []
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Disk read / write rate",
+      "id": 22,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 19
+      },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "${ds}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "0",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "${ds}"
+          },
+          "group": {
+            "filter": "$group"
+          },
+          "host": {
+            "filter": "$host"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "/Disk (read|write) rate/"
+          },
+          "functions": []
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Host resources",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
+      "id": 30
+    },
+    {
+      "type": "gauge",
+      "title": "CPU utilization",
+      "id": 31,
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 28
+      },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "${ds}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "0",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "${ds}"
+          },
+          "group": {
+            "filter": "$group"
+          },
+          "host": {
+            "filter": "$host"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "CPU utilization"
+          },
+          "functions": []
+        }
+      ]
+    },
+    {
+      "type": "gauge",
+      "title": "Memory utilization",
+      "id": 32,
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 28
+      },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "${ds}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 75
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "0",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "${ds}"
+          },
+          "group": {
+            "filter": "$group"
+          },
+          "host": {
+            "filter": "$host"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "Memory utilization"
+          },
+          "functions": []
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Active problems — NAS scope",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      },
+      "id": 40
+    },
+    {
+      "type": "alexanderzobnin-zabbix-triggers-panel",
+      "title": "Active problems — NAS",
+      "id": 41,
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 35
+      },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "${ds}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "problems",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "${ds}"
+          },
+          "group": {
+            "filter": "$group"
+          },
+          "host": {
+            "filter": "$host"
+          },
+          "application": {
+            "filter": ""
+          },
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "showProblems": "problems",
+          "options": {
+            "sortProblems": "priority",
+            "acknowledged": 2,
+            "minSeverity": 2,
+            "hostsInMaintenance": false,
+            "limit": 100
+          }
+        }
+      ],
+      "options": {
+        "layout": "table",
+        "sortProblems": "priority",
+        "pageSize": 20,
+        "highlightNewerThan": "1h",
+        "problemTimeline": true,
+        "hostField": true,
+        "hostTechNameField": false,
+        "hostGroups": false,
+        "statusField": true,
+        "statusIcon": true,
+        "severityField": true,
+        "ackField": true,
+        "ageField": true,
+        "descriptionField": true,
+        "descriptionAtNewLine": false,
+        "showTags": true,
+        "allowDangerousHTML": false,
         "triggerSeverity": [
-          { "priority": 0, "severity": "Not classified", "color": "#B7DBAB", "show": true },
-          { "priority": 1, "severity": "Information",     "color": "#7EB26D", "show": true },
-          { "priority": 2, "severity": "Warning",         "color": "#EAB839", "show": true },
-          { "priority": 3, "severity": "Average",         "color": "#EF843C", "show": true },
-          { "priority": 4, "severity": "High",            "color": "#E24D42", "show": true },
-          { "priority": 5, "severity": "Disaster",        "color": "#BF1B00", "show": true }
+          {
+            "priority": 0,
+            "severity": "Not classified",
+            "color": "#B7DBAB",
+            "show": true
+          },
+          {
+            "priority": 1,
+            "severity": "Information",
+            "color": "#7EB26D",
+            "show": true
+          },
+          {
+            "priority": 2,
+            "severity": "Warning",
+            "color": "#EAB839",
+            "show": true
+          },
+          {
+            "priority": 3,
+            "severity": "Average",
+            "color": "#EF843C",
+            "show": true
+          },
+          {
+            "priority": 4,
+            "severity": "High",
+            "color": "#E24D42",
+            "show": true
+          },
+          {
+            "priority": 5,
+            "severity": "Disaster",
+            "color": "#BF1B00",
+            "show": true
+          }
         ]
       }
     }

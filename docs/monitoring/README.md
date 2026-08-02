@@ -1,6 +1,8 @@
 # Grafana dashboards — AX Svr (Zabbix)
 
-Bộ dashboard (Zabbix 7.4 · agent2 · Grafana 13 · plugin `alexanderzobnin-zabbix-datasource`). Import: Dashboards → New → Import → Upload JSON → chọn biến **Zabbix datasource**.
+Bộ dashboard (Zabbix 7.4 · agent2 · Grafana 13 · plugin `alexanderzobnin-zabbix-datasource`). Import: Dashboards → New → Import → Upload JSON.
+
+**Biến lọc đầu mỗi dashboard Zabbix (1-7):** `Datasource` (mặc định datasource **tên "Zabbix"**) → `Host group` → `Host` (cascading, đều có **All**). Chọn Group/Host để drill-down; để **All** thì giữ đúng scope cũ của từng dashboard.
 
 | # | File | Mục đích | Chạy được ngay? |
 |---|------|----------|-----------------|
@@ -18,7 +20,9 @@ Bộ dashboard (Zabbix 7.4 · agent2 · Grafana 13 · plugin `alexanderzobnin-za
 
 > **Dashboard 5–7 sẽ TRỐNG cho tới khi gắn template/cấu hình tương ứng** — làm theo **[PREREQUISITES.md](PREREQUISITES.md)** (gắn "PostgreSQL by Zabbix agent 2" + "Patroni by HTTP" + "Nginx by Zabbix agent", bật stub_status, thêm UserParameter Keepalived/Samba, tạo user `zbx_monitor`…). Panel nào cần gì đã ghi ở `description` (hover để xem) + panel `text` đầu mỗi dashboard.
 
-Các dashboard đều lọc host bằng regex (`/AX-/`, `/AX-(DB|NAS|Proxy)/`, `/AX-WEB/`, `/AX-DB0/`, `/AX-Proxy/`, `/AX-NAS/`) nên tự gom đúng máy, không cần khai từng host.
+Biến `Host` mặc định (**All**) = đúng scope curated cũ của từng dashboard (`/AX-/`, `/AX-(DB|NAS|Proxy)/`, `/AX-WEB/`, `/AX-DB0/`, `/AX-Proxy/`, `/AX-NAS/`) nên vẫn tự gom đúng máy. Panel đặc thù vẫn cố định: **fleet** giữ chia OS (`/AX-(DB|NAS|Proxy)/` + `/AX-WEB/`), **nginx** giữ panel VIP (`/AX-Web-VIP/`) — không bị `$host` đè.
+
+> Datasource var lấy datasource **tên đúng "Zabbix"**; nếu Zabbix của anh đặt tên khác thì đổi ở dropdown Datasource (hoặc sửa `current.value` trong JSON).
 
 ---
 
