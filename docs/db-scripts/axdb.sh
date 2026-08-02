@@ -544,7 +544,7 @@ cmd_check_storage() {           # [db]  — verify data lives on its own mounted
     unmounted="$(lsblk -rno NAME,TYPE,FSTYPE,MOUNTPOINT 2>/dev/null | awk '($2=="part"||$2=="lvm") && $3!="" && $3!="swap" && $4==""{print $1" ("$3")"}' || true)"
     if [ -n "$unmounted" ]; then
       echo "  ⚠️  WARN: filesystem(s) present but NOT mounted:"
-      printf '%s\n' "$unmounted" | sed 's/^/     - /'
+      printf '%s\n' "$unmounted" | sed 's/^/     - /' || true
       echo "           if one of these is your data/backup disk, it was forgotten."; warn=1
     fi
   else
