@@ -11,28 +11,43 @@
 ---
 
 ## 1. UserParameter — trên CẢ 2 proxy
-`/etc/zabbix/zabbix_agent2.d/keepalived.conf`:
+`/etc/zabbix/zabbix_agent2.d/keepalived.conf` (dạng tham số hoá — VIP truyền từ Zabbix macro, agent file generic giống hệt 2 proxy):
 ```
-UserParameter=vip.holder,ip addr show | grep -q "107.118.210.100/" && echo 1 || echo 0
+UserParameter=vip.holder[*],ip addr show | grep -q "$1/" && echo 1 || echo 0
 UserParameter=keepalived.proc,pgrep -c keepalived
 ```
 ```bash
 sudo systemctl restart zabbix-agent2
-zabbix_agent2 -t vip.holder        # proxy đang giữ VIP -> 1, proxy kia -> 0
-zabbix_agent2 -t keepalived.proc   # >=1 (0 = keepalived chết)
+zabbix_agent2 -t 'vip.holder[107.118.210.100]'   # proxy đang giữ VIP -> 1, proxy kia -> 0
+zabbix_agent2 -t keepalived.proc                  # >=1 (0 = keepalived chết)
 ```
+> Template truyền VIP qua macro `{$KEEPALIVED.VIP}` → item key = `vip.holder[{$KEEPALIVED.VIP}]`. Đổi VIP về sau chỉ sửa **macro trong Zabbix**, không đụng agent.
 - `vip.holder` = **1** ở proxy nào → proxy đó **đang ACTIVE** (giữ VIP).
 - `keepalived.proc` = số tiến trình keepalived.
 
 ---
 
-## 2. Item — tạo trên MỖI proxy (AX-Proxy01 và AX-Proxy02)
+## 2. Cách nhanh — import template rồi link (khuyên dùng)
+Thay vì tạo item/trigger tay từng proxy, import **`zbx-template-keepalived-vip.yaml`**:
+
+1. Data collection → **Templates → Import** → chọn file → Import.
+2. Vào **AX-Proxy01** và **AX-Proxy02** → tab **Templates → Link** template **"AX Keepalived VIP by Agent"**.
+3. (Tuỳ chọn) đổi macro `{$KEEPALIVED.VIP}` ở host/template nếu VIP khác `107.118.210.100`.
+
+Template đã gồm: item `vip.holder[{$KEEPALIVED.VIP}]` (30s) + `keepalived.proc` (1m), trigger **VIP acquired by {HOST.NAME}** (switch) + **Keepalived DOWN** (rớt), tag `service:keepalived`.
+
+> ⚠️ **Giới hạn template:** 2 trigger **cross-host** (split-brain, no-holder) tham chiếu CẢ 2 host nên **không nằm trong template được** — tạo tay 1 lần (mục 3c/3d).
+> Nếu agent dùng **active checks**, sau import đổi item Type → *Zabbix agent (active)*.
+
+Muốn làm tay (không import) thì theo mục 2b + 3 dưới.
+
+## 2b. Item tạo tay — trên MỖI proxy (AX-Proxy01 và AX-Proxy02)
 Data collection → Hosts → (proxy) → Items → **Create item** (2 item/proxy):
 
 | Field | Item A | Item B |
 |---|---|---|
 | Name | `Keepalived: VIP holder` | `Keepalived: process count` |
-| Key | `vip.holder` | `keepalived.proc` |
+| Key | `vip.holder[107.118.210.100]` | `keepalived.proc` |
 | Type | Zabbix agent | Zabbix agent |
 | Type of information | Numeric (unsigned) | Numeric (unsigned) |
 | Update interval | **`30s`** *(bắt kịp failover nhanh)* | `1m` |
@@ -46,7 +61,7 @@ Data collection → Hosts → (proxy) → Items → **Create item** (2 item/prox
 ### 3a. Mỗi lần switch → báo (kèm ai đang active) — **1 trigger/proxy**
 Tạo trên từng proxy (đổi host tương ứng):
 ```
-change(/AX-Proxy01/vip.holder)=1
+change(/AX-Proxy01/vip.holder[107.118.210.100])=1
 ```
 - `change()` = giá trị mới − cũ; `=1` nghĩa `0→1` = **proxy này VỪA nhận VIP** = có failover.
 - Name: `VIP acquired by {HOST.NAME}` · Severity: **Warning** (hoặc Info).
@@ -73,13 +88,13 @@ nodata(/AX-Proxy01/agent.ping,3m)=1
 
 ### 3c. Split-brain (cả 2 cùng giữ VIP) — 1 trigger chung
 ```
-last(/AX-Proxy01/vip.holder)=1 and last(/AX-Proxy02/vip.holder)=1
+last(/AX-Proxy01/vip.holder[107.118.210.100])=1 and last(/AX-Proxy02/vip.holder[107.118.210.100])=1
 ```
 - Name: `VIP SPLIT-BRAIN — both proxies hold 107.118.210.100` · Severity: **High**. Tag `service:keepalived`.
 
 ### 3d. Không ai giữ VIP → báo — 1 trigger chung
 ```
-last(/AX-Proxy01/vip.holder)=0 and last(/AX-Proxy02/vip.holder)=0
+last(/AX-Proxy01/vip.holder[107.118.210.100])=0 and last(/AX-Proxy02/vip.holder[107.118.210.100])=0
 ```
 - Name: `VIP DOWN — no proxy holds 107.118.210.100` · Severity: **Disaster**.
 - Kèm (độc lập): host **AX-Web-VIP** (IP `107.118.210.100`) gắn template **"ICMP Ping"** → trigger `max(/AX-Web-VIP/icmpping,#3)=0` = VIP thật sự chết.

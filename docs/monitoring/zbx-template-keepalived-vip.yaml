@@ -1,0 +1,58 @@
+zabbix_export:
+  version: '7.4'
+  template_groups:
+    - uuid: c85d366e048847bc9e56afc2f4c1451d
+      name: Templates/Applications
+  templates:
+    - uuid: 510c8411150c434da03a74a7f53a08a4
+      template: 'AX Keepalived VIP by Agent'
+      name: 'AX Keepalived VIP by Agent'
+      description: |
+        Monitor Keepalived VIP holder + process. Link vao ax-proxy01 & ax-proxy02.
+        Can UserParameter tren agent (xem runbook-keepalived-vip-monitor.md).
+        Trigger cross-host (split-brain / no-holder) PHAI tao thu cong (template khong tham chieu 2 host).
+      groups:
+        - name: Templates/Applications
+      items:
+        - uuid: ea7201f9966149958764920b49a986c1
+          name: 'Keepalived: VIP holder'
+          key: 'vip.holder[{$KEEPALIVED.VIP}]'
+          delay: 30s
+          value_type: UNSIGNED
+          description: '1 = node dang giu VIP (active) · 0 = khong.'
+          tags:
+            - tag: service
+              value: keepalived
+          triggers:
+            - uuid: 08cb8925abd5458f9bb665b743bb94cf
+              expression: 'change(/AX Keepalived VIP by Agent/vip.holder[{$KEEPALIVED.VIP}])=1'
+              name: 'VIP acquired by {HOST.NAME}'
+              priority: WARNING
+              recovery_mode: NONE
+              manual_close: 'YES'
+              description: 'VIP vua chuyen sang node nay (failover). Ack sau khi xem.'
+              tags:
+                - tag: service
+                  value: keepalived
+        - uuid: 815da1fa68a1487aa22e6df1969c4099
+          name: 'Keepalived: process count'
+          key: 'keepalived.proc'
+          delay: 1m
+          value_type: UNSIGNED
+          description: 'So tien trinh keepalived (0 = chet).'
+          tags:
+            - tag: service
+              value: keepalived
+          triggers:
+            - uuid: 4c891be6366c4e3092f19a4d3c317681
+              expression: 'last(/AX Keepalived VIP by Agent/keepalived.proc)=0'
+              name: 'Keepalived DOWN on {HOST.NAME}'
+              priority: HIGH
+              description: 'Keepalived khong chay tren node nay.'
+              tags:
+                - tag: service
+                  value: keepalived
+      macros:
+        - macro: '{$KEEPALIVED.VIP}'
+          value: '107.118.210.100'
+          description: 'VIP office-net cua cum proxy'
