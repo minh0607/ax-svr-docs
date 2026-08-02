@@ -11,12 +11,12 @@ Dashboard: `grafana-ax-fleet-dashboard.json` — tổng quan sức khỏe 10 má
 2. **Upload** file `grafana-ax-fleet-dashboard.json` (hoặc dán nội dung).
 3. Ở bước chọn, gán biến **`Zabbix datasource`** = data source Zabbix của anh → **Import**.
 
-## Nội dung dashboard
-- **Overview (latest):** 3 ô lớn CPU% / RAM% / disk `/`% hiện tại theo từng host (đổi màu cam/đỏ khi cao).
-- **CPU & Load:** biểu đồ CPU utilization + Load average 1m.
-- **Memory & Disk:** Memory utilization + **Filesystem space utilization mọi mount** (thấy luôn `/data`, `/backup` vừa gắn).
-- **Network:** bits in/out các interface.
-- Biến `Host` (multi-select) để lọc theo máy; mặc định `All`.
+## Nội dung dashboard (chia theo OS)
+- **Overview — all AX hosts:** 3 ô lớn CPU% / RAM% / disk hiện tại theo từng máy (cam/đỏ khi cao).
+- **🐧 Linux servers** (host `/AX-(DB|NAS|Proxy)/` → DB01/02/03, DBDEV, NAS, Proxy01/02): CPU · Load 1m · Memory · **Filesystem mọi mount (`/`, `/data`, `/backup`)** · Network.
+- **🪟 Windows servers (Web/IIS)** (host `/AX-WEB/` → WEB01/02): CPU · Memory · Disk (C:, D:) · Network. *(Không có Load average — Windows không có khái niệm này.)*
+
+> Tách section bằng **regex host** nên tự phân loại; không cần khai từng máy. Muốn thêm máy Linux mới có tên khác quy ước thì sửa regex trong panel.
 
 ## Nếu một panel trống (không ra dữ liệu)
 Nguyên nhân thường gặp: **tên item khác** giữa các phiên bản template Zabbix. Dashboard dùng tên chuẩn của template "Linux by Zabbix agent":

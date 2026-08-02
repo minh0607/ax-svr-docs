@@ -4,7 +4,7 @@
   "graphTooltip": 1,
   "time": { "from": "now-6h", "to": "now" },
   "refresh": "1m",
-  "title": "AX Svr — Fleet Overview (Zabbix)",
+  "title": "AX Svr — Fleet Overview by OS (Zabbix)",
   "tags": ["ax-svr", "zabbix", "infra"],
   "schemaVersion": 39,
   "templating": {
@@ -16,94 +16,110 @@
         "query": "alexanderzobnin-zabbix-datasource",
         "current": {},
         "hide": 0
-      },
-      {
-        "name": "host",
-        "label": "Host",
-        "type": "query",
-        "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
-        "query": { "application": "", "group": "/.*/", "host": "/AX-/", "item": "", "queryType": "host" },
-        "refresh": 1,
-        "includeAll": true,
-        "multi": true,
-        "current": { "text": "All", "value": "$__all" }
       }
     ]
   },
   "panels": [
-    { "type": "row", "title": "Overview (latest)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "id": 1 },
+    { "type": "row", "title": "Overview — all AX hosts (latest)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "id": 1 },
     {
       "type": "stat", "title": "CPU utilization — now", "id": 2,
       "gridPos": { "h": 6, "w": 8, "x": 0, "y": 1 },
       "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
-      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100,
-        "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 80 }, { "color": "red", "value": 90 } ] } }, "overrides": [] },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "area", "textMode": "value_and_name", "orientation": "auto" },
-      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/$host/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/CPU utilization/" }, "functions": [ { "def": { "name": "setAlias" }, "params": ["$host"] } ], "options": { "skipEmptyValues": false } } ]
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 80 }, { "color": "red", "value": 90 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "area", "textMode": "value_and_name" },
+      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/CPU utilization/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
     },
     {
       "type": "stat", "title": "Memory utilization — now", "id": 3,
       "gridPos": { "h": 6, "w": 8, "x": 8, "y": 1 },
       "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
-      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100,
-        "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 85 }, { "color": "red", "value": 95 } ] } }, "overrides": [] },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 85 }, { "color": "red", "value": 95 } ] } }, "overrides": [] },
       "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "area", "textMode": "value_and_name" },
-      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/$host/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/Memory utilization/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
+      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/Memory utilization/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
     },
     {
-      "type": "stat", "title": "Root FS (/) used — now", "id": 4,
+      "type": "stat", "title": "Root FS (/) or (C:) used — now", "id": 4,
       "gridPos": { "h": 6, "w": 8, "x": 16, "y": 1 },
       "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
-      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100,
-        "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 80 }, { "color": "red", "value": 90 } ] } }, "overrides": [] },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 80 }, { "color": "red", "value": 90 } ] } }, "overrides": [] },
       "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "area", "textMode": "value_and_name" },
-      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/$host/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/^\\/: Space utilization$/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
+      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/(^\\/: Space utilization$|C:: Space utilization)/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
     },
 
-    { "type": "row", "title": "CPU & Load", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 }, "id": 10 },
+    { "type": "row", "title": "🐧 Linux servers (DB · DBDEV · NAS · Proxy)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 }, "id": 100 },
     {
-      "type": "timeseries", "title": "CPU utilization", "id": 11,
+      "type": "timeseries", "title": "Linux — CPU utilization", "id": 101,
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
       "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
       "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max", "lastNotNull"] }, "tooltip": { "mode": "multi" } },
-      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/$host/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/CPU utilization/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
+      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-(DB|NAS|Proxy)/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/CPU utilization/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
     },
     {
-      "type": "timeseries", "title": "Load average (1m)", "id": 12,
+      "type": "timeseries", "title": "Linux — Load average (1m)", "id": 102,
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
       "fieldConfig": { "defaults": { "unit": "short", "min": 0, "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
       "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max", "lastNotNull"] }, "tooltip": { "mode": "multi" } },
-      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/$host/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/Load average \\(1m avg\\)/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
+      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-(DB|NAS|Proxy)/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/Load average \\(1m avg\\)/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
     },
-
-    { "type": "row", "title": "Memory & Disk", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 }, "id": 20 },
     {
-      "type": "timeseries", "title": "Memory utilization", "id": 21,
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 17 },
+      "type": "timeseries", "title": "Linux — Memory utilization", "id": 103,
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
       "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
       "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max", "lastNotNull"] }, "tooltip": { "mode": "multi" } },
-      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/$host/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/Memory utilization/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
+      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-(DB|NAS|Proxy)/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/Memory utilization/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
     },
     {
-      "type": "timeseries", "title": "Filesystem space utilization (all mounts — incl. /data, /backup)", "id": 22,
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 17 },
+      "type": "timeseries", "title": "Linux — Filesystem space (all mounts: / /data /backup)", "id": 104,
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
       "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
       "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
-      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/$host/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/: Space utilization/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
+      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-(DB|NAS|Proxy)/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/: Space utilization/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
     },
-
-    { "type": "row", "title": "Network", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 }, "id": 30 },
     {
-      "type": "timeseries", "title": "Network traffic (bits in/out)", "id": 31,
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 26 },
+      "type": "timeseries", "title": "Linux — Network (bits in/out)", "id": 105,
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
       "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
       "fieldConfig": { "defaults": { "unit": "bps", "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
       "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi" } },
-      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/$host/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/Bits (received|sent)/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
+      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-(DB|NAS|Proxy)/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/Bits (received|sent)/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
+    },
+
+    { "type": "row", "title": "🪟 Windows servers (Web / IIS)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 }, "id": 200 },
+    {
+      "type": "timeseries", "title": "Windows — CPU utilization", "id": 201,
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 33 },
+      "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] }, "tooltip": { "mode": "multi" } },
+      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-WEB/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/CPU utilization/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
+    },
+    {
+      "type": "timeseries", "title": "Windows — Memory utilization", "id": 202,
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 33 },
+      "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] }, "tooltip": { "mode": "multi" } },
+      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-WEB/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/Memory utilization/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
+    },
+    {
+      "type": "timeseries", "title": "Windows — Disk space (C:, D:)", "id": 203,
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 33 },
+      "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-WEB/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/: Space utilization/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
+    },
+    {
+      "type": "timeseries", "title": "Windows — Network (bits in/out)", "id": 204,
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 41 },
+      "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
+      "fieldConfig": { "defaults": { "unit": "bps", "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-WEB/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/Bits (received|sent)/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
     }
   ]
 }
