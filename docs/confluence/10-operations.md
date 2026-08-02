@@ -61,6 +61,21 @@ psql -h 10.1.1.90 -U <app_user> -d AXDEV -c "SELECT count(*) FROM <table>;"
 ./axdb.sh bind-ip <user> --unpin              # remove the pin
 ```
 
+## Check cluster health (one shot)
+
+```bash
+./axdb.sh health              # optional: ./axdb.sh health <db>
+```
+Prints, in one pass:
+- **services** — `etcd` / `patroni` systemd status
+- **etcd (DCS quorum)** — `etcdctl endpoint health` against the discovered endpoints
+- **patroni** — `patronictl list` (roles, lag) + synchronous_mode config
+- **postgresql** — real `data_directory`, version, role (primary/replica), `pg_stat_replication` per replica, WAL archiver stats
+- **disk (data dir)** — `df -h` on the actual data directory (auto-discovered, not assumed `/data`)
+- **backup (pgBackRest)** — `pgbackrest info` on the node holding the backup repo (auto-discovered, not assumed `/backup`)
+
+Must run **on a DB node** for the patroni/etcd/backup sections (the missing tool/file is reported per section instead of failing); the postgresql section also works remotely via `PSQL_ADMIN`.
+
 ## Check database cluster health / failover
 
 ```bash

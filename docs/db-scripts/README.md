@@ -51,6 +51,12 @@ If you want **a single script**, use `axdb.sh` (self-contained, no other files n
 ```
 > `bind-ip` **auto-detects**: if `patronictl` + `/etc/patroni/patroni.yml` exist → use DCS; otherwise edit the file. Force with `--file` / `--patroni`.
 
+Cluster health in one shot (run on a DB node):
+```bash
+./axdb.sh health              # services, etcd quorum, patroni roles/lag, replication, real data_directory + disk, pgBackRest
+```
+It auto-discovers the data directory and backup repo (no assumption about `/data` or `/backup`).
+
 The standalone scripts below still work (same logic) — pick either approach.
 
 ---

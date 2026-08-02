@@ -62,6 +62,7 @@ Three layers, never mixed:
 | Pin a user to specific IPs | `./axdb.sh bind-ip <user> <ip[,ip2]>` |
 | Reset a role's password | `./axdb.sh passwd <role>` |
 | Drop schema / user / db (guarded) | `./axdb.sh drop-schema` · `drop-user` · `drop-db` |
+| Cluster health (one shot) | `./axdb.sh health [db]` |
 
 ## Behaviors worth knowing
 

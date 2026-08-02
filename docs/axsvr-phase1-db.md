@@ -428,6 +428,13 @@ sudo systemctl start patroni      # DB1 rejoin thành Replica (pg_rewind)
 patronictl list
 ```
 
+### Kiểm tra sức khỏe cụm
+
+`axdb.sh health` để xem nhanh trạng thái cụm (services, etcd, patroni, replication, disk, backup) — chạy trên DB node.
+```bash
+./axdb.sh health
+```
+
 ---
 
 ## Bàn giao Web Engineer (connection string Cách 2)
