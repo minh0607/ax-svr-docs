@@ -11,7 +11,7 @@
 **Cần gắn thêm (template chính thức Zabbix 7.4):**
 | Template | Host | Dashboard | Kèm theo |
 |---|---|---|---|
-| `PostgreSQL by Zabbix agent 2` | AX-DB01/02/03 (+DBDEV) | 5 | user `zbx_monitor` + pg_hba + `{$PG.*}` (§1) |
+| `PostgreSQL by Zabbix agent 2` | AX-DB01/02/03 (+DBDEV) | 5 | user `zabbixmonitor` + pg_hba + `{$PG.*}` (§1) |
 | `Patroni by HTTP` | AX-DB01/02/03 | 5 | mở `:8008` + `{$PATRONI.*}` (§2) |
 | `Nginx by Zabbix agent` | AX-Proxy01/02 | 6 | bật stub_status + `{$NGINX.STUB_STATUS.*}` (§3) |
 | `SMART disks by Zabbix agent 2` *(tuỳ chọn)* | AX-NAS | 7 | cài `smartmontools` (§5) |
@@ -27,13 +27,13 @@
 
 **b. User giám sát** (tạo 1 lần trên Leader, tự replicate):
 ```sql
-CREATE ROLE zbx_monitor WITH LOGIN PASSWORD '<strong-pwd>';
-GRANT pg_monitor TO zbx_monitor;     -- chỉ đọc thống kê, KHÔNG đọc data
+CREATE ROLE zabbixmonitor WITH LOGIN PASSWORD '<strong-pwd>';
+GRANT pg_monitor TO zabbixmonitor;     -- chỉ đọc thống kê, KHÔNG đọc data
 ```
 
 **c. pg_hba — sửa qua Patroni, KHÔNG sửa tay** (`patronictl edit-config`, hoặc bootstrap block), vì Patroni sẽ ghi đè `pg_hba.conf`:
 ```yaml
-- host  all  zbx_monitor  127.0.0.1/32  scram-sha-256
+- host  all  zabbixmonitor  127.0.0.1/32  scram-sha-256
 ```
 (agent2 kết nối localhost trên chính node → chỉ cần 127.0.0.1, không mở 5432 ra ngoài.)
 
@@ -42,7 +42,7 @@ GRANT pg_monitor TO zbx_monitor;     -- chỉ đọc thống kê, KHÔNG đọc 
 |---|---|
 | `{$PG.HOST}` | `localhost` |
 | `{$PG.PORT}` | `5432` |
-| `{$PG.USER}` | `zbx_monitor` |
+| `{$PG.USER}` | `zabbixmonitor` |
 | `{$PG.PASSWORD}` | (Secret macro) |
 
 **e. Verify:** `zabbix_agent2 -t pgsql.ping` trên mỗi node → OK.

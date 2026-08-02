@@ -11,6 +11,10 @@ Bộ dashboard (Zabbix 7.4 · agent2 · Grafana 13 · plugin `alexanderzobnin-za
 | 5 | `grafana-ax-postgres-patroni.json` | **PostgreSQL + Patroni cluster** — connections, TPS, cache hit, replication lag, role, slots | ⚠️ cần template (xem PREREQUISITES §1-2) |
 | 6 | `grafana-ax-nginx-cluster.json` | **Nginx proxy cluster** — WHO IS ACTIVE (VIP), requests/s, dropped conns, backend reachability | ⚠️ cần template (§3-4) |
 | 7 | `grafana-ax-nas.json` | **NAS / Samba** — smbd/nmbd, sessions, share space+inode, I/O | ⚠️ cần UserParameter (§5) |
+| 8 | `grafana-ax-db-performance.json` | **DB Performance** (yêu cầu sếp) — top queries theo user/calls/time, per-user activity, transactions, locks, cache, vacuum | ⚠️ cần `pg_stat_statements` + Grafana **PostgreSQL datasource** (role `zabbixmonitor`) |
+| 9 | `grafana-ax-db-security.json` | **DB Security & Audit** (yêu cầu sếp) — superuser posture, connections theo IP, pg_hba rules + lớp pgAudit (auth fail, truy cập bảng nhạy cảm, đổi quyền) | ⚠️ posture chạy ngay với PG datasource; audit-log cần pgAudit |
+
+> Dashboard 8-9 dùng **Grafana PostgreSQL datasource** trực tiếp (không qua Zabbix) cho bảng top-N — tạo datasource với role read-only **`zabbixmonitor`** (`pg_monitor`), DSN multi-host `10.1.1.103,104,105 ... target_session_attrs=read-write`. Bật `pg_stat_statements`/`pgAudit` + tạo item/trigger theo PREREQUISITES.
 
 > **Dashboard 5–7 sẽ TRỐNG cho tới khi gắn template/cấu hình tương ứng** — làm theo **[PREREQUISITES.md](PREREQUISITES.md)** (gắn "PostgreSQL by Zabbix agent 2" + "Patroni by HTTP" + "Nginx by Zabbix agent", bật stub_status, thêm UserParameter Keepalived/Samba, tạo user `zbx_monitor`…). Panel nào cần gì đã ghi ở `description` (hover để xem) + panel `text` đầu mỗi dashboard.
 

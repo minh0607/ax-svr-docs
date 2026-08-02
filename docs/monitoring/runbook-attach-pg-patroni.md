@@ -19,18 +19,18 @@ zabbix_agent2 -V | head -1          # xác nhận là agent 2
 ## 1. Tạo user giám sát — chạy 1 LẦN trên LEADER
 User là object cluster-wide → tự replicate sang 2 standby.
 ```bash
-sudo -u postgres psql -c "CREATE ROLE zbx_monitor WITH LOGIN PASSWORD '<PGZBX_PWD>';"
-sudo -u postgres psql -c "GRANT pg_monitor TO zbx_monitor;"
+sudo -u postgres psql -c "CREATE ROLE zabbixmonitor WITH LOGIN PASSWORD '<PGZBX_PWD>';"
+sudo -u postgres psql -c "GRANT pg_monitor TO zabbixmonitor;"
 # kiểm tra
-sudo -u postgres psql -c "\du zbx_monitor"
+sudo -u postgres psql -c "\du zabbixmonitor"
 ```
 `pg_monitor` = chỉ đọc thống kê (pg_stat_*), KHÔNG đọc dữ liệu bảng → an toàn chạy từ mọi node.
 
-## 2. Cho phép zbx_monitor kết nối localhost — trên TỪNG node (AX-DB01/02/03)
+## 2. Cho phép zabbixmonitor kết nối localhost — trên TỪNG node (AX-DB01/02/03)
 pg_hba do Patroni quản. **Append 1 dòng vào list `pg_hba` đang có trong `/etc/patroni/patroni.yml`** (KHÔNG xoá dòng khác — sẽ mất rule replication/app):
 ```yaml
 # trong /etc/patroni/patroni.yml, dưới  postgresql: \n  pg_hba:  (thêm vào cuối list)
-  - host  all  zbx_monitor  127.0.0.1/32  scram-sha-256
+  - host  all  zabbixmonitor  127.0.0.1/32  scram-sha-256
 ```
 Rồi reload (không restart, không downtime):
 ```bash
@@ -60,7 +60,7 @@ Data collection → Hosts → **AX-DB01** (rồi lặp cho DB02, DB03):
 |---|---|
 | `{$PG.HOST}` | `127.0.0.1` |
 | `{$PG.PORT}` | `5432` |
-| `{$PG.USER}` | `zbx_monitor` |
+| `{$PG.USER}` | `zabbixmonitor` |
 | `{$PG.PASSWORD}` | `<PGZBX_PWD>`  → **chọn kiểu "Secret text"** |
 | `{$PATRONI.API.PORT}` | `8008` |
 | `{$PATRONI.API.SCHEME}` | `http` |
@@ -84,6 +84,6 @@ Trong Zabbix **Monitoring → Latest data**, lọc host `AX-DB01`, item chứa `
 ```bash
 # gỡ template khỏi host trong Zabbix UI (Unlink and clear)
 # xoá dòng pg_hba vừa thêm + reload patroni
-# xoá user: sudo -u postgres psql -c "DROP ROLE zbx_monitor;"  (trên Leader)
+# xoá user: sudo -u postgres psql -c "DROP ROLE zabbixmonitor;"  (trên Leader)
 # đóng cổng: sudo ufw delete allow from <ZBX_PROXY_IP> to any port 8008 proto tcp
 ```

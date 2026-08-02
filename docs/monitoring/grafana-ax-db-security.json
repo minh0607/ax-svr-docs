@@ -1,0 +1,53 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 0,
+  "time": { "from": "now-24h", "to": "now" },
+  "refresh": "5m",
+  "title": "AX · DB Security & Audit",
+  "tags": ["ax-svr", "postgres", "security", "audit"],
+  "schemaVersion": 39,
+  "templating": { "list": [
+    { "name": "pgds", "label": "PostgreSQL datasource", "type": "datasource", "query": "grafana-postgresql-datasource", "current": {}, "hide": 0 }
+  ] },
+  "panels": [
+    { "type": "text", "id": 1, "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+      "options": { "mode": "markdown", "content": "**Posture panels (dưới)** chạy ngay khi có Grafana **PostgreSQL datasource** (role read-only `zabbixmonitor`/`pg_monitor`) — đọc catalog, không cần pgAudit. **Lớp audit-log** (auth failures, truy cập `hr.hr_salary`, DDL, đổi quyền) là **Zabbix triggers** (cần bật pgAudit + logrt items) → hiện trên **SOC wall**. Cả hai lắp theo `docs/monitoring/runbook-db-perf-security.md`." } },
+
+    { "type": "row", "title": "Privilege posture (catalog — chạy ngay)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 3 }, "id": 10 },
+    { "type": "stat", "title": "Superuser count (chỉ nên = postgres + dbadmin)", "id": 11, "gridPos": { "h": 5, "w": 6, "x": 0, "y": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "${pgds}" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 3 } ] }, "color": { "mode": "thresholds" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "targets": [ { "refId": "A", "datasource": { "type": "grafana-postgresql-datasource", "uid": "${pgds}" }, "format": "table", "editorMode": "code",
+        "rawSql": "SELECT count(*) AS superusers FROM pg_roles WHERE rolsuper;" } ] },
+    { "type": "table", "title": "SUPERUSER roles (bất thường nếu ngoài postgres/dbadmin — vụ db_dev)", "id": 12, "gridPos": { "h": 5, "w": 18, "x": 6, "y": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "${pgds}" }, "options": { "showHeader": true },
+      "targets": [ { "refId": "A", "datasource": { "type": "grafana-postgresql-datasource", "uid": "${pgds}" }, "format": "table", "editorMode": "code",
+        "rawSql": "SELECT rolname, rolsuper, rolcreaterole, rolcreatedb, rolcanlogin, rolreplication FROM pg_roles WHERE rolsuper ORDER BY rolname;" } ] },
+    { "type": "table", "title": "Privileged non-superuser (CREATEROLE / CREATEDB)", "id": 13, "gridPos": { "h": 7, "w": 12, "x": 0, "y": 9 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "${pgds}" }, "options": { "showHeader": true },
+      "targets": [ { "refId": "A", "datasource": { "type": "grafana-postgresql-datasource", "uid": "${pgds}" }, "format": "table", "editorMode": "code",
+        "rawSql": "SELECT rolname, rolcreaterole, rolcreatedb, rolcanlogin FROM pg_roles WHERE (rolcreaterole OR rolcreatedb) AND NOT rolsuper ORDER BY rolname;" } ] },
+    { "type": "table", "title": "Login roles inventory (+ password expiry)", "id": 14, "gridPos": { "h": 7, "w": 12, "x": 12, "y": 9 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "${pgds}" }, "options": { "showHeader": true },
+      "targets": [ { "refId": "A", "datasource": { "type": "grafana-postgresql-datasource", "uid": "${pgds}" }, "format": "table", "editorMode": "code",
+        "rawSql": "SELECT rolname, rolsuper, rolcreaterole, rolcreatedb, rolvaliduntil, rolconnlimit FROM pg_roles WHERE rolcanlogin AND rolname NOT LIKE 'pg\\_%' ORDER BY rolsuper DESC, rolname;" } ] },
+
+    { "type": "row", "title": "Access — who connects from where", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 }, "id": 20 },
+    { "type": "table", "title": "Live connections by user + client IP", "id": 21, "gridPos": { "h": 8, "w": 12, "x": 0, "y": 17 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "${pgds}" }, "options": { "showHeader": true },
+      "targets": [ { "refId": "A", "datasource": { "type": "grafana-postgresql-datasource", "uid": "${pgds}" }, "format": "table", "editorMode": "code",
+        "rawSql": "SELECT usename AS usr, client_addr, datname AS db, application_name AS app, COUNT(*) AS conns, MAX(backend_start) AS newest_conn FROM pg_stat_activity WHERE client_addr IS NOT NULL GROUP BY usename, client_addr, datname, application_name ORDER BY conns DESC;" } ] },
+    { "type": "table", "title": "pg_hba rules (soi rule rộng / lỗi)", "id": 22, "gridPos": { "h": 8, "w": 12, "x": 12, "y": 17 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "${pgds}" },
+      "fieldConfig": { "defaults": {}, "overrides": [ { "matcher": { "id": "byName", "options": "address" }, "properties": [ { "id": "custom.cellOptions", "value": { "type": "color-text" } } ] } ] },
+      "options": { "showHeader": true },
+      "targets": [ { "refId": "A", "datasource": { "type": "grafana-postgresql-datasource", "uid": "${pgds}" }, "format": "table", "editorMode": "code",
+        "rawSql": "SELECT line_number AS ln, type, array_to_string(database,',') AS db, array_to_string(user_name,',') AS usr, address, auth_method, error FROM pg_hba_file_rules ORDER BY line_number;" } ] },
+
+    { "type": "row", "title": "Audit-log layer (pgAudit → Zabbix triggers → SOC wall)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 }, "id": 30 },
+    { "type": "text", "id": 31, "gridPos": { "h": 8, "w": 24, "x": 0, "y": 26 },
+      "options": { "mode": "markdown", "content": "Các tín hiệu audit dưới đây **không phải panel Grafana** mà là **Zabbix triggers** (tag `service:postgres-security`) — bật pgAudit + `logrt[]` theo `runbook-db-perf-security.md`, cảnh báo hiện lên **SOC wall**:\n\n| Cảnh báo | Nguồn | Severity |\n|---|---|---|\n| **Superuser set đổi** (chống lặp db_dev) | catalog snapshot `pg_roles` | Disaster |\n| Role/quyền đổi (GRANT/ALTER/CREATE ROLE) | pgAudit `role` class | High |\n| Truy cập `hr.hr_salary` | pgAudit OBJECT (scope bảng nhạy cảm) | High |\n| DDL trên schema prod (hr/finance) | pgAudit `ddl` class | Average/High |\n| Auth failures (brute force) | log `password authentication failed` | High |\n| **HBA reject** = user kết nối từ IP ngoài dải đã ghim | log `pg_hba.conf rejects connection` | High |\n| pg_hba file đổi / có rule `0.0.0.0/0` | `vfs.file.cksum` + content check | Warning/Disaster |\n\n> pgAudit chỉ bật session-class `ddl, role, misc_set` (KHÔNG bật `write/read` toàn cục — tránh nhiễu + tải); audit bảng nhạy cảm scope qua pseudo-role `pgaudit`." } }
+  ]
+}
