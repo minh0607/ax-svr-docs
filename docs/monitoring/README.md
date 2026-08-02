@@ -1,11 +1,20 @@
 # Grafana dashboards — AX Svr (Zabbix)
 
-Có 2 dashboard, cùng dùng plugin `alexanderzobnin-zabbix-datasource`:
+Bộ dashboard (Zabbix 7.4 · agent2 · Grafana 13 · plugin `alexanderzobnin-zabbix-datasource`). Import: Dashboards → New → Import → Upload JSON → chọn biến **Zabbix datasource**.
 
-| File | Mục đích |
-|---|---|
-| `grafana-ax-soc-wall.json` | **Màn hình SOC/NOC treo tường** — UP/DOWN, cảnh báo đang active, đèn đỏ/xanh. Nhìn phát biết ngay. |
-| `grafana-ax-fleet-dashboard.json` | Tổng quan chi tiết theo OS (CPU/RAM/disk/load/net, đồ thị) để soi sâu. |
+| # | File | Mục đích | Chạy được ngay? |
+|---|------|----------|-----------------|
+| 1 | `grafana-ax-soc-wall.json` | **SOC/NOC wall** — UP/DOWN, active problems, đèn đỏ/xanh (treo tường, kiosk) | ✅ |
+| 2 | `grafana-ax-fleet-dashboard.json` | Tổng quan nhanh theo OS (Linux/Windows) | ✅ |
+| 3 | `grafana-ax-linux-detail.json` | **Linux chi tiết** (7 máy: DB/DBDEV/NAS/Proxy) — CPU breakdown, load, mem/swap, disk+inode+I/O, net errors | ✅ |
+| 4 | `grafana-ax-windows-detail.json` | **Windows chi tiết** (WEB01/02) — CPU/mem/disk/net (+ chỗ chờ IIS) | ✅ (IIS cần perf-counter) |
+| 5 | `grafana-ax-postgres-patroni.json` | **PostgreSQL + Patroni cluster** — connections, TPS, cache hit, replication lag, role, slots | ⚠️ cần template (xem PREREQUISITES §1-2) |
+| 6 | `grafana-ax-nginx-cluster.json` | **Nginx proxy cluster** — WHO IS ACTIVE (VIP), requests/s, dropped conns, backend reachability | ⚠️ cần template (§3-4) |
+| 7 | `grafana-ax-nas.json` | **NAS / Samba** — smbd/nmbd, sessions, share space+inode, I/O | ⚠️ cần UserParameter (§5) |
+
+> **Dashboard 5–7 sẽ TRỐNG cho tới khi gắn template/cấu hình tương ứng** — làm theo **[PREREQUISITES.md](PREREQUISITES.md)** (gắn "PostgreSQL by Zabbix agent 2" + "Patroni by HTTP" + "Nginx by Zabbix agent", bật stub_status, thêm UserParameter Keepalived/Samba, tạo user `zbx_monitor`…). Panel nào cần gì đã ghi ở `description` (hover để xem) + panel `text` đầu mỗi dashboard.
+
+Các dashboard đều lọc host bằng regex (`/AX-/`, `/AX-(DB|NAS|Proxy)/`, `/AX-WEB/`, `/AX-DB0/`, `/AX-Proxy/`, `/AX-NAS/`) nên tự gom đúng máy, không cần khai từng host.
 
 ---
 
