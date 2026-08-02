@@ -39,14 +39,32 @@ sudo systemctl reload patroni      # hoặc: patronictl -c /etc/patroni/patroni.
 > Làm y hệt trên cả 3 node (cùng 1 dòng). Kiểm: `sudo -u postgres psql -c "SELECT 1"` vẫn chạy bình thường sau reload.
 > (agent2 pgsql plugin nối 127.0.0.1 nên chỉ cần dòng này — KHÔNG mở 5432 ra ngoài.)
 
-## 3. Mở cổng Patroni REST :8008 cho Zabbix — trên TỪNG node
-"Patroni by HTTP" poll REST API :8008 từ Zabbix proxy.
+## 3. Cho REST API :8008 nghe được từ Zabbix + mở cổng — trên TỪNG node
+"Patroni by HTTP" là item **HTTP agent** → **Zabbix proxy poll từ xa** tới `{HOST.CONN}:8008` (interface của DB host trong Zabbix = office-net `107.118.210.10x`).
+
+**a. Nếu Patroni REST đang chỉ nghe IP LAN** (`sudo ss -tlnp | grep 8008` chỉ thấy `10.1.1.10x:8008`) → proxy office-net không thấy. Sửa `restapi` trong `/etc/patroni/patroni.yml`:
+```yaml
+restapi:
+  listen: 0.0.0.0:8008              # nghe mọi interface (restapi.listen chỉ nhận 1 địa chỉ)
+  connect_address: 10.1.1.103:8008  # GIỮ NGUYÊN IP LAN — các node quảng bá cho nhau qua backend
+```
+```bash
+sudo systemctl reload patroni       # restapi thường rebind qua reload; nếu chưa, restart service patroni từng node (replica trước)
+sudo ss -tlnp | grep 8008           # phải thấy 0.0.0.0:8008 (hoặc :::8008)
+```
+> ⚠️ REST API write-endpoint (switchover/restart) **mặc định không auth** → khi mở office-net BẮT BUỘC ufw chỉ cho đúng IP proxy. Nên thêm `restapi.authentication` (username/password) để chặn write; **GET đọc trạng thái vẫn mở → template không cần credential**.
+
+**b. Mở cổng cho ĐÚNG Zabbix proxy:**
 ```bash
 sudo ufw allow from <ZBX_PROXY_IP> to any port 8008 proto tcp
 sudo ufw status | grep 8008
-# kiểm API trả JSON:
-curl -s http://127.0.0.1:8008/patroni | head
 ```
+
+**c. Kiểm API — chạy TỪ máy Zabbix proxy** (không phải từ node, để test đúng đường office-net + firewall):
+```bash
+curl -s http://107.118.210.103:8008/patroni | head    # phải ra JSON role/state
+```
+> Patroni KHÔNG nghe `127.0.0.1` → `curl 127.0.0.1:8008` sẽ refused; luôn dùng IP thật.
 
 ## 4. Trong Zabbix UI — gắn template + macro (cho cả 3 DB host)
 Data collection → Hosts → **AX-DB01** (rồi lặp cho DB02, DB03):
@@ -64,8 +82,10 @@ Data collection → Hosts → **AX-DB01** (rồi lặp cho DB02, DB03):
 | `{$PG.PASSWORD}` | `<PGZBX_PWD>`  → **chọn kiểu "Secret text"** |
 | `{$PATRONI.API.PORT}` | `8008` |
 | `{$PATRONI.API.SCHEME}` | `http` |
+| `{$PATRONI.HOST}` *(nếu template có)* | `{HOST.CONN}` |
 
-> Nếu template PostgreSQL bản này dùng `{$PG.URI}` thay vì host/port: đặt `{$PG.URI}` = `tcp://127.0.0.1:5432`.
+> **Bẫy hay gặp:** item Patroni báo *"failed to connect to 127.0.0.1 port 8008"* = macro host để mặc định `localhost` → proxy tự gọi chính nó. Sửa `{$PATRONI.HOST}` = `{HOST.CONN}` (dùng interface office-net của DB host). Nếu master item **hardcode** `http://127.0.0.1:8008/...` trong ô URL → sửa thẳng URL thành `http://{HOST.CONN}:8008/...`. Dùng nút **Test → Get value** để thấy URL đã resolve.
+> **Không cần user/password** cho Patroni (chỉ GET). Nếu template PostgreSQL dùng `{$PG.URI}`: đặt `{$PG.URI}` = `tcp://127.0.0.1:5432`.
 
 ## 5. Verify (sau 1-2 phút cho Zabbix poll)
 ```bash

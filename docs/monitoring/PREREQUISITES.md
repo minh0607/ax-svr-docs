@@ -77,23 +77,26 @@ sudo ufw allow from <zabbix-proxy-ip> to any port 8008 proto tcp
 ## 3. Nginx cluster (dashboard `grafana-ax-nginx-cluster.json`)
 Áp trên **AX-Proxy01/02**.
 
-**a. Bật stub_status** (mỗi proxy, bind IP riêng — không ride VIP):
+**a. Bật stub_status.** Template "Nginx by Zabbix agent" cho **agent2 chạy NGAY TRÊN proxy** lấy stub_status → cho nghe **loopback** là sạch nhất (khỏi hở office-net, khỏi ufw, 2 proxy giống hệt):
 ```nginx
 # /etc/nginx/conf.d/status.conf
 server {
-    listen 10.1.1.98:8080;        # proxy01: .98 · proxy02: .99
-    location /basic_status { stub_status; allow 10.1.1.0/24; deny all; }
+    listen 127.0.0.1:8080;
+    location /basic_status { stub_status; allow 127.0.0.1; deny all; }
 }
 ```
 ```bash
 sudo nginx -t && sudo systemctl reload nginx
-sudo ufw allow from <zabbix-proxy-ip> to any port 8080 proto tcp
+curl -s http://127.0.0.1:8080/basic_status    # phải ra "Active connections: ..."
 ```
+Macro khi đó: `{$NGINX.STUB_STATUS.HOST}=127.0.0.1`.
+
+> **Bẫy 403:** nếu bind office-net (`listen 107.118.210.99:8080`) mà agent gọi tới đó thì **source = IP chính proxy** → phải `allow` IP đó (không chỉ `127.0.0.1`), nếu không nginx trả **403** và mọi item con "Not supported". Loopback tránh hẳn lỗi này. (Chỉ dùng "Nginx by **HTTP**" — server poll từ xa — mới cần bind office-net + `allow <zabbix-proxy-ip>` + `ufw allow ... 8080`.)
 
 **b. Template:** gắn **"Nginx by Zabbix agent"**. Macro per host:
 | Macro | Value |
 |---|---|
-| `{$NGINX.STUB_STATUS.HOST}` | `10.1.1.98` / `.99` |
+| `{$NGINX.STUB_STATUS.HOST}` | `127.0.0.1` (loopback — khuyên) |
 | `{$NGINX.STUB_STATUS.PORT}` | `8080` |
 | `{$NGINX.STUB_STATUS.PATH}` | `basic_status` |
 
@@ -104,12 +107,14 @@ Item cho panel: `Connections active/reading/writing/waiting`, `Connections accep
 ## 4. Keepalived / VIP (cùng dashboard Nginx)
 **a. UserParameter trên cả 2 proxy** (`/etc/zabbix/zabbix_agent2.d/keepalived.conf`):
 ```
-UserParameter=vip.holder,ip addr show | grep -q "10.1.1.100/" && echo 1 || echo 0
+UserParameter=vip.holder,ip addr show | grep -q "107.118.210.100/" && echo 1 || echo 0
 UserParameter=keepalived.proc,pgrep -c keepalived
 ```
 `systemctl restart zabbix-agent2`. Tạo item `vip.holder` (0/1) + `keepalived.proc` trên mỗi proxy. Panel "WHO IS ACTIVE": node báo 1 = ACTIVE.
 
-**b. VIP ICMP:** host **AX-Web-VIP** gắn template **"ICMP Ping"** (items `icmpping`/`icmppingloss`/`icmppingsec`; cần `fping` trên Zabbix proxy/server).
+> VIP nổi trên **office-net `107.118.210.100`** (mặt user), không phải LAN — nên grep đúng IP này. Keepalived thêm VIP dạng `/32` → `grep "107.118.210.100/"` khớp.
+
+**b. VIP ICMP:** host **AX-Web-VIP** (IP `107.118.210.100`) gắn template **"ICMP Ping"** (items `icmpping`/`icmppingloss`/`icmppingsec`; cần `fping` trên Zabbix proxy/server).
 
 **c. Split-brain** (cả 2 = 1 hoặc cả 2 = 0): nên bắt bằng **Zabbix trigger** (so 2 item `vip.holder`), hiện lên qua panel Problems — không tính client-side trong Grafana.
 
