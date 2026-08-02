@@ -1,6 +1,28 @@
-# Grafana dashboard — AX Svr Fleet (Zabbix)
+# Grafana dashboards — AX Svr (Zabbix)
 
-Dashboard: `grafana-ax-fleet-dashboard.json` — tổng quan sức khỏe 10 máy AX (CPU, RAM, disk, load, network) lấy từ Zabbix qua plugin Grafana `alexanderzobnin-zabbix-datasource`.
+Có 2 dashboard, cùng dùng plugin `alexanderzobnin-zabbix-datasource`:
+
+| File | Mục đích |
+|---|---|
+| `grafana-ax-soc-wall.json` | **Màn hình SOC/NOC treo tường** — UP/DOWN, cảnh báo đang active, đèn đỏ/xanh. Nhìn phát biết ngay. |
+| `grafana-ax-fleet-dashboard.json` | Tổng quan chi tiết theo OS (CPU/RAM/disk/load/net, đồ thị) để soi sâu. |
+
+---
+
+## SOC / NOC Wall — `grafana-ax-soc-wall.json`
+3 khối, auto-refresh 30s:
+- **🟢 Cluster status:** ô lớn UP/DOWN từng host (xanh=UP, đỏ=DOWN) — dựa trên item `Zabbix agent availability`.
+- **🚨 Active problems:** bảng cảnh báo Zabbix đang mở (panel Problems của plugin), tô màu theo severity, mới nhất trên cùng. Đây là trọng tâm SOC.
+- **📊 Resource pressure:** đèn CPU% / RAM% / Disk% hiện tại, đổi cam/đỏ khi vượt ngưỡng.
+
+**Chiếu lên màn tường:** mở dashboard → thêm `?kiosk&refresh=30s&theme=dark` vào URL (hoặc nút Kiosk mode) để full-screen không viền.
+
+**Cần:** plugin Zabbix có sẵn **panel Problems** (`alexanderzobnin-zabbix-triggers-panel`) — mặc định đi kèm plugin. Nếu panel "Active problems" báo thiếu panel type → cập nhật plugin Zabbix. VIP (AX-Web-VIP) chỉ có ICMP nên có thể không hiện ở ô availability (dựa trên agent) — nếu cần, thêm 1 ô stat item `/ICMP ping/` cho VIP.
+
+---
+
+## Fleet detail — `grafana-ax-fleet-dashboard.json`
+Tổng quan sức khỏe 10 máy AX (CPU, RAM, disk, load, network) lấy từ Zabbix qua plugin Grafana `alexanderzobnin-zabbix-datasource`.
 
 ## Yêu cầu
 - Grafana đã cài plugin **Zabbix** (`alexanderzobnin-zabbix-datasource`) và đã có 1 data source trỏ tới Zabbix (chính là cái Grafana đang show Zabbix hiện tại).

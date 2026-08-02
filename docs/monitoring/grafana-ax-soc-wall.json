@@ -1,0 +1,89 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 0,
+  "style": "dark",
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "30s",
+  "title": "AX Svr — SOC / NOC Wall",
+  "tags": ["ax-svr", "zabbix", "soc", "noc", "wall"],
+  "schemaVersion": 39,
+  "templating": {
+    "list": [
+      { "name": "ds", "label": "Zabbix datasource", "type": "datasource", "query": "alexanderzobnin-zabbix-datasource", "current": {}, "hide": 0 }
+    ]
+  },
+  "panels": [
+    { "type": "row", "title": "🟢 CLUSTER STATUS — host up/down", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "id": 1 },
+    {
+      "type": "stat", "title": "Host availability (AX fleet)", "id": 2,
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 1 },
+      "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
+      "fieldConfig": { "defaults": {
+        "mappings": [
+          { "type": "value", "options": { "1": { "text": "UP",      "color": "green",  "index": 0 } } },
+          { "type": "value", "options": { "2": { "text": "DOWN",    "color": "red",    "index": 1 } } },
+          { "type": "value", "options": { "0": { "text": "UNKNOWN", "color": "orange", "index": 2 } } }
+        ],
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null } ] }, "color": { "mode": "fixed" }
+      }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "center", "orientation": "horizontal" },
+      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/Zabbix agent availability/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
+    },
+
+    { "type": "row", "title": "🚨 ACTIVE PROBLEMS", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 8 }, "id": 10 },
+    {
+      "type": "alexanderzobnin-zabbix-triggers-panel", "title": "Active problems — AX fleet", "id": 11,
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 9 },
+      "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
+      "targets": [ {
+        "refId": "A", "queryType": "problems",
+        "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
+        "group": { "filter": "/.*/" }, "host": { "filter": "/AX-/" }, "application": { "filter": "" }, "proxy": { "filter": "" }, "trigger": { "filter": "" },
+        "showProblems": "problems",
+        "options": { "sortProblems": "priority", "acknowledged": 2, "minSeverity": 2, "hostsInMaintenance": false, "limit": 100 }
+      } ],
+      "options": {
+        "layout": "table", "sortProblems": "priority", "pageSize": 20,
+        "highlightNewerThan": "1h", "problemTimeline": true,
+        "hostField": true, "hostTechNameField": false, "hostGroups": false, "statusField": true, "statusIcon": true,
+        "severityField": true, "ackField": true, "ageField": true, "descriptionField": true, "descriptionAtNewLine": false,
+        "showTags": true, "allowDangerousHTML": false,
+        "triggerSeverity": [
+          { "priority": 0, "severity": "Not classified", "color": "#B7DBAB", "show": true },
+          { "priority": 1, "severity": "Information",     "color": "#7EB26D", "show": true },
+          { "priority": 2, "severity": "Warning",         "color": "#EAB839", "show": true },
+          { "priority": 3, "severity": "Average",         "color": "#EF843C", "show": true },
+          { "priority": 4, "severity": "High",            "color": "#E24D42", "show": true },
+          { "priority": 5, "severity": "Disaster",        "color": "#BF1B00", "show": true }
+        ]
+      }
+    },
+
+    { "type": "row", "title": "📊 RESOURCE PRESSURE (now)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 }, "id": 20 },
+    {
+      "type": "stat", "title": "CPU %", "id": 21,
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 22 },
+      "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 80 }, { "color": "red", "value": 90 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "area", "textMode": "value_and_name", "orientation": "horizontal" },
+      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/CPU utilization/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
+    },
+    {
+      "type": "stat", "title": "Memory %", "id": 22,
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 22 },
+      "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 85 }, { "color": "red", "value": 95 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "area", "textMode": "value_and_name", "orientation": "horizontal" },
+      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/Memory utilization/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
+    },
+    {
+      "type": "stat", "title": "Disk % (all mounts)", "id": 23,
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 22 },
+      "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 80 }, { "color": "red", "value": 90 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name", "orientation": "horizontal" },
+      "targets": [ { "refId": "A", "queryType": "0", "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "${ds}" }, "group": { "filter": "/.*/" }, "host": { "filter": "/AX-/" }, "application": { "filter": "" }, "itemTag": { "filter": "" }, "item": { "filter": "/: Space utilization/" }, "functions": [], "options": { "skipEmptyValues": false } } ]
+    }
+  ]
+}
