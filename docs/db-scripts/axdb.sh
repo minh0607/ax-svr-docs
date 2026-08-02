@@ -498,6 +498,75 @@ cmd_health() {                  # [db]   — one-shot cluster health (run on a D
   echo "=============================================================="
 }
 
+cmd_check_storage() {           # [db]  — verify data lives on its own mounted disk (catch a forgotten mount)
+  local db="${1:-postgres}" warn=0
+  echo "==================== AX DB storage check ===================="
+  echo "host: $(hostname 2>/dev/null || echo '?')   ·   db: $db"
+
+  # --- data directory: which filesystem is it really on? ---
+  local dd; dd="$($PSQL -d "$db" -tAc 'SHOW data_directory' 2>/dev/null || true)"
+  if [ -z "$dd" ]; then
+    echo "-- data directory --"
+    echo "  ? cannot query data_directory via \$PSQL — run this on the DB node"
+    warn=1
+  else
+    echo "-- data directory --"
+    echo "  path     : $dd"
+    if [ ! -e "$dd" ]; then
+      echo "  ⚠️  NOTE: '$dd' is not present on THIS host ($(hostname 2>/dev/null || echo '?'))."
+      echo "           check-storage inspects LOCAL disks — run it ON the DB node (unset PSQL_ADMIN)."; warn=1
+    elif command -v findmnt >/dev/null 2>&1; then
+      local mp dev fstype
+      mp="$(findmnt -no TARGET --target "$dd" 2>/dev/null || true)"
+      dev="$(findmnt -no SOURCE --target "$dd" 2>/dev/null || true)"
+      fstype="$(findmnt -no FSTYPE --target "$dd" 2>/dev/null || true)"
+      echo "  on mount : ${mp:-?}   device: ${dev:-?}   fs: ${fstype:-?}"
+      df -h "$dd" 2>/dev/null | sed 's/^/  /' || true
+      if [ -z "$mp" ]; then
+        echo "  ⚠️  WARN: cannot determine the mount for the data directory."; warn=1
+      elif [ "$mp" = "/" ]; then
+        echo "  ⚠️  WARN: data directory is on the ROOT filesystem (/)."
+        echo "           A dedicated data disk was likely NEVER mounted — see block devices + fstab below."; warn=1
+      else
+        echo "  OK: data directory is on its own mount ($mp)."
+      fi
+    else
+      echo "  (findmnt not found — run on the DB node)"
+      df -h "$dd" 2>/dev/null | sed 's/^/  /' || true
+    fi
+  fi
+
+  # --- block devices: any filesystem present but NOT mounted? (the forgotten disk) ---
+  echo "-- block devices --"
+  if command -v lsblk >/dev/null 2>&1; then
+    lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINT 2>/dev/null | sed 's/^/  /' || true
+    local unmounted
+    unmounted="$(lsblk -rno NAME,TYPE,FSTYPE,MOUNTPOINT 2>/dev/null | awk '($2=="part"||$2=="lvm") && $3!="" && $3!="swap" && $4==""{print $1" ("$3")"}' || true)"
+    if [ -n "$unmounted" ]; then
+      echo "  ⚠️  WARN: filesystem(s) present but NOT mounted:"
+      printf '%s\n' "$unmounted" | sed 's/^/     - /'
+      echo "           if one of these is your data/backup disk, it was forgotten."; warn=1
+    fi
+  else
+    echo "  (lsblk not found — run on the DB node)"
+  fi
+
+  # --- fstab: are /data // /backup meant to auto-mount? ---
+  echo "-- fstab (/data, /backup) --"
+  if [ -r /etc/fstab ]; then
+    if grep -E '/data|/backup' /etc/fstab >/dev/null 2>&1; then
+      grep -E '/data|/backup' /etc/fstab | sed 's/^/  /'
+    else
+      echo "  (no /data or /backup entry in /etc/fstab)"
+    fi
+  else
+    echo "  (/etc/fstab not readable here — run on the DB node)"
+  fi
+
+  echo "============================================================"
+  if [ "$warn" = 0 ]; then echo ">> storage OK ✅"; else echo ">> storage has WARNINGS ⚠️  — review above"; fi
+}
+
 cmd_set_search_path() {         # <user> <schema[,schema2]|--reset>
   local user="${1:-}" path="${2:-}"
   [ -n "$user" ] && [ -n "$path" ] || die "Usage: axdb.sh set-search-path <user> <schema[,schema2]|--reset>"
@@ -963,6 +1032,7 @@ axdb.sh — PostgreSQL administration (AX Svr)
   list <roles|dbs|members <g>|grants <db>>    View roles/dbs/privileges
   check                                       Check connection (which user is connected)
   health [db]                                 One-shot cluster health: services, etcd, patroni, replication, disk, backup
+  check-storage [db]                          Verify the data dir is on its own mounted disk (catch a forgotten mount)
   help                                        This help
 
 Remote connection: export PSQL_ADMIN="psql -h 107.118.210.90 -U dbadmin"
@@ -1010,10 +1080,11 @@ menu() {
  28) Grant / revoke a SCHEMA privilege (USAGE/CREATE)
  29) Schema privilege overview (schema-perm)
  30) Cluster health check (health)
+ 31) Storage / disk-mount check (check-storage)
   0) Exit
 ==========================================
 M
-    read -rp "Select [0-30]: " ch || exit 0
+    read -rp "Select [0-31]: " ch || exit 0
     case "$ch" in
       1) _run cmd_create_admin ;;
       2) _run cmd_create_user_admin ;;
@@ -1059,6 +1130,7 @@ M
       28) read -rp "Action [grant/revoke]: " a; read -rp "Role: " r; read -rp "Database: " d; read -rp "Schema: " s; read -rp "Privilege [USAGE/CREATE/ALL]: " p; _run cmd_grant_schema "$a" "$r" "$d" "$s" "$p" ;;
       29) read -rp "Database: " d; read -rp "Schema: " s; _run cmd_schema_perm "$d" "$s" ;;
       30) read -rp "Database (blank=postgres): " d; _run cmd_health "${d:-}" ;;
+      31) read -rp "Database (blank=postgres): " d; _run cmd_check_storage "${d:-}" ;;
       0) echo "Bye."; exit 0 ;;
       *) echo "Invalid choice." ;;
     esac
@@ -1086,6 +1158,7 @@ case "$cmd" in
   revoke-schema)      cmd_grant_schema revoke "$@";;
   schema-perm)        cmd_schema_perm "$@";;
   health)             cmd_health "$@";;
+  check-storage)      cmd_check_storage "$@";;
   set-search-path)    cmd_set_search_path "$@";;
   set-owner)          cmd_set_owner "$@";;
   set-schema)         cmd_set_schema "$@";;
