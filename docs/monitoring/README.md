@@ -4,6 +4,8 @@ Bộ dashboard (Zabbix 7.4 · agent2 · Grafana 13 · plugin `alexanderzobnin-za
 
 **Biến lọc đầu mỗi dashboard Zabbix (1-7):** `Datasource` (mặc định datasource **tên "Zabbix"**) → `Host group` → `Host` (cascading, đều có **All**). Chọn Group/Host để drill-down; để **All** thì giữ đúng scope cũ của từng dashboard.
 
+> **Template Zabbix tự tạo** (Keepalived VIP · Firewall Ubuntu/Windows · Samba · etcd): xem [zbx-templates-README.md](zbx-templates-README.md) — import + link + UserParameter cho từng service.
+
 | # | File | Mục đích | Chạy được ngay? |
 |---|------|----------|-----------------|
 | 1 | `grafana-ax-soc-wall.json` | **SOC/NOC wall** — UP/DOWN, active problems, đèn đỏ/xanh (treo tường, kiosk) | ✅ |
