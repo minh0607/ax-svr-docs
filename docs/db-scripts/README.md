@@ -57,6 +57,12 @@ Cluster health in one shot (run on a DB node):
 ```
 It auto-discovers the data directory and backup repo (no assumption about `/data` or `/backup`).
 
+Storage / mount sanity (catch a forgotten disk mount — run on the DB node):
+```bash
+./axdb.sh check-storage       # is the data dir on its own mounted disk, or on root? any unmounted disk? fstab
+```
+Warns if the data directory sits on the ROOT filesystem (a dedicated data disk was never mounted) or if a formatted disk is present but unmounted.
+
 The standalone scripts below still work (same logic) — pick either approach.
 
 ---

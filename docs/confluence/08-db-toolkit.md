@@ -1,6 +1,6 @@
 # AX Svr — Database Administration Toolkit
 
-> **Source:** `docs/db-scripts/` (see its `README.md`) · **Status:** In use on DevDB & production; 14-file automated test suite.
+> **Source:** `docs/db-scripts/` (see its `README.md`) · **Status:** In use on DevDB & production; 15-file automated test suite.
 
 A bash toolkit for day-to-day PostgreSQL administration — creating roles, databases, schemas, and (most importantly) managing access under a **schema-per-app** model. Two entry points, same capabilities:
 
@@ -63,6 +63,7 @@ Three layers, never mixed:
 | Reset a role's password | `./axdb.sh passwd <role>` |
 | Drop schema / user / db (guarded) | `./axdb.sh drop-schema` · `drop-user` · `drop-db` |
 | Cluster health (one shot) | `./axdb.sh health [db]` |
+| Storage / disk-mount sanity | `./axdb.sh check-storage [db]` |
 
 ## Behaviors worth knowing
 
@@ -73,7 +74,7 @@ Three layers, never mixed:
 
 ## Testing
 
-The toolkit ships an automated test suite (14 files) that runs against an ephemeral **PostgreSQL 17 Docker** container via the `PSQL_ADMIN` override — no local Postgres needed:
+The toolkit ships an automated test suite (15 files) that runs against an ephemeral **PostgreSQL 17 Docker** container via the `PSQL_ADMIN` override — no local Postgres needed:
 ```bash
 for t in docs/db-scripts/tests/test-*.sh; do bash "$t"; done   # each prints == PASS=n FAIL=0 ==
 ```

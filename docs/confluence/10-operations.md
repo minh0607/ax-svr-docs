@@ -76,6 +76,20 @@ Prints, in one pass:
 
 Must run **on a DB node** for the patroni/etcd/backup sections (the missing tool/file is reported per section instead of failing); the postgresql section also works remotely via `PSQL_ADMIN`.
 
+## Check storage / catch a forgotten disk mount
+
+A classic, silent mistake: a dedicated data (or backup) disk was created but **never mounted** — PostgreSQL then writes to a plain folder on the **root** filesystem while the real disk sits empty. Run **on the DB node**:
+
+```bash
+./axdb.sh check-storage       # optional: ./axdb.sh check-storage <db>
+```
+It reports:
+- the real `data_directory` and **which filesystem/mount** it lives on — **WARNs if that is the root (`/`)** (dedicated disk likely not mounted);
+- **block devices** with a filesystem but **no mountpoint** (the forgotten disk);
+- the `/data` and `/backup` lines in `/etc/fstab`.
+
+⚠️ Never mount a disk *over* a data directory that already holds live data on root — it shadows the data and PostgreSQL will see an empty dir. Stop the node, copy the data to the mounted disk, then remount. See the storage-fix steps in the DB toolkit / phase-1 doc.
+
 ## Check database cluster health / failover
 
 ```bash

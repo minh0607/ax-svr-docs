@@ -435,6 +435,12 @@ patronictl list
 ./axdb.sh health
 ```
 
+**Kiểm tra ổ đĩa (bắt lỗi quên mount).** `axdb.sh check-storage` (chạy trên DB node) dò `data_directory` thật nằm trên mount riêng hay trên **root**, liệt kê đĩa có filesystem nhưng **chưa mount**, và soi `fstab`.
+```bash
+./axdb.sh check-storage
+```
+> ⚠️ Nếu data đang nằm trên root vì quên mount: KHÔNG mount đĩa đè lên data đang sống (sẽ che khuất data → PG thấy thư mục rỗng). Phải dừng node, copy data sang đĩa đã mount, rồi mới đổi mount. Làm lần lượt replica trước, primary sau.
+
 ---
 
 ## Bàn giao Web Engineer (connection string Cách 2)
