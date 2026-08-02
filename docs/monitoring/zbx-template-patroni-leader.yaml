@@ -1,0 +1,54 @@
+zabbix_export:
+  version: '7.4'
+  template_groups:
+    - uuid: 281dfee29bc04fa09d3923e7cbe8968a
+      name: Templates/Applications
+  templates:
+    - uuid: 5e548cda951141a09ae751d1097c79a9
+      template: 'Patroni Leader Monitor Template for DB'
+      name: 'Patroni Leader Monitor Template for DB'
+      description: |
+        Cho biet node nao dang la Leader (1/0) + bao moi lan Leader chuyen (failover).
+        Agent-side: agent2 curl /leader local (200 = node nay la leader). Link vao ax-db01/02/03.
+        Can UserParameter (/etc/zabbix/zabbix_agent2.d/patroni-leader.conf):
+          UserParameter=patroni.leader[*],[ "$(curl -s -o /dev/null -w '%{http_code}' "$1")" = "200" ] && echo 1 || echo 0
+        Macro {$PATRONI.LEADER.URL} = http://127.0.0.1:8008/leader
+        Yeu cau: Patroni restapi.listen gom 127.0.0.1 (hoac 0.0.0.0). Neu chi nghe LAN -> doi macro sang http://10.1.1.10x:8008/leader.
+        No-leader (ca 3 node = 0) -> tao tay trigger cross-host (xem zbx-templates-README.md).
+      groups:
+        - name: Templates/Applications
+      items:
+        - uuid: b834a072e38a4f4a9151a85efc325517
+          name: 'Patroni: is Leader'
+          key: 'patroni.leader[{$PATRONI.LEADER.URL}]'
+          delay: 30s
+          value_type: UNSIGNED
+          description: '1 = node nay dang giu Leader (/leader tra 200) · 0 = replica/standby.'
+          valuemap:
+            name: 'Patroni leader'
+          tags:
+            - tag: service
+              value: postgres
+          triggers:
+            - uuid: 8d407119cd284551a7eec03d70be6bf2
+              expression: 'change(/Patroni Leader Monitor Template for DB/patroni.leader[{$PATRONI.LEADER.URL}])=1'
+              name: 'Leader moved to {HOST.NAME}'
+              priority: WARNING
+              recovery_mode: NONE
+              manual_close: 'YES'
+              description: 'Node nay VUA tro thanh Leader (failover/switchover). Ack sau khi xem.'
+              tags:
+                - tag: service
+                  value: postgres
+      macros:
+        - macro: '{$PATRONI.LEADER.URL}'
+          value: 'http://127.0.0.1:8008/leader'
+          description: 'Endpoint /leader cua Patroni (localhost). Doi IP/https neu can.'
+      valuemaps:
+        - uuid: 4b28923b0cdd4f49b0dee62339359ffd
+          name: 'Patroni leader'
+          mappings:
+            - value: '0'
+              newvalue: 'replica'
+            - value: '1'
+              newvalue: 'LEADER'

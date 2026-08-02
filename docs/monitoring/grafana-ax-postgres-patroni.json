@@ -1371,6 +1371,103 @@
         }
       ],
       "description": "Tên item dự đoán — verify. Cảnh báo nếu 3 node không cùng timeline (lệch = node không theo kịp failover gần nhất)."
+    },
+    {
+      "type": "stat",
+      "title": "WHO IS LEADER (per DB node)",
+      "id": 22,
+      "gridPos": {
+        "h": 5,
+        "w": 24,
+        "x": 0,
+        "y": 66
+      },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "${ds}"
+      },
+      "description": "1 = node dang giu Leader (item patroni.leader). Can template 'Patroni Leader Monitor Template for DB'.",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "LEADER",
+                  "color": "green",
+                  "index": 0
+                },
+                "0": {
+                  "text": "replica",
+                  "color": "blue",
+                  "index": 1
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "0",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "${ds}"
+          },
+          "group": {
+            "filter": "$group"
+          },
+          "host": {
+            "filter": "$host"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "/Patroni: is Leader/"
+          },
+          "functions": [],
+          "options": {
+            "skipEmptyValues": false
+          }
+        }
+      ]
     }
   ]
 }

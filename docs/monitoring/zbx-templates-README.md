@@ -22,6 +22,7 @@ Nguyên tắc: **template định nghĩa item/trigger/macro; UserParameter + sud
 | `zbx-template-firewall.yaml` | **Firewall Monitor Template for Windows** | web01, web02 | `service:security` |
 | `zbx-template-samba-nas.yaml` | **Samba Monitor Template for NAS** | nas | `service:samba` |
 | `zbx-template-etcd-health.yaml` | **etcd Health Monitor Template for DB** | db01/02/03 | `service:etcd` |
+| `zbx-template-patroni-leader.yaml` | **Patroni Leader Monitor Template for DB** | db01/02/03 | `service:postgres` |
 
 ---
 
@@ -76,6 +77,16 @@ Nguyên tắc: **template định nghĩa item/trigger/macro; UserParameter + sud
   UserParameter=etcd.health[*],curl -s "$1" | grep -q '"health":"true"' && echo 1 || echo 0
   ```
 
+### 6. Patroni Leader Monitor Template for DB  → PREREQUISITES §2 / runbook-attach-pg-patroni.md
+- **Item:** `patroni.leader[{$PATRONI.LEADER.URL}]` (30s, value-map 1=LEADER/0=replica) · **Trigger:** `Leader moved to {HOST.NAME}` (Warning — báo mỗi lần failover)
+- **Macro:** `{$PATRONI.LEADER.URL}` = `http://127.0.0.1:8008/leader`
+- Agent-side: `/leader` trả **200 ở Leader**, 503 ở node khác → 1/0. Cần Patroni `restapi.listen` gồm `127.0.0.1` (hoặc `0.0.0.0`).
+- Panel **WHO IS LEADER (per DB node)** đã có trong dashboard `grafana-ax-postgres-patroni.json`.
+- **Agent** (`/etc/zabbix/zabbix_agent2.d/patroni-leader.conf`):
+  ```
+  UserParameter=patroni.leader[*],[ "$(curl -s -o /dev/null -w '%{http_code}' "$1")" = "200" ] && echo 1 || echo 0
+  ```
+
 ---
 
 ## Trigger cross-host — TẠO TAY (template Zabbix không tham chiếu 2 host)
@@ -85,6 +96,7 @@ Nguyên tắc: **template định nghĩa item/trigger/macro; UserParameter + sud
 | VIP split-brain | `last(/AX-Proxy01/vip.holder[107.118.210.100])=1 and last(/AX-Proxy02/vip.holder[107.118.210.100])=1` | High |
 | VIP no-holder | `last(/AX-Proxy01/vip.holder[107.118.210.100])=0 and last(/AX-Proxy02/vip.holder[107.118.210.100])=0` | Disaster |
 | etcd quorum lost | ≥2/3 node `etcd.health=0` (đếm qua trigger so 3 host) | Disaster |
+| Patroni no-leader | `last(/AX-DB01/patroni.leader[http://127.0.0.1:8008/leader])=0 and last(/AX-DB02/...)=0 and last(/AX-DB03/...)=0` | Disaster |
 
 ---
 
