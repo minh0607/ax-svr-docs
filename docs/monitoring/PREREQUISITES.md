@@ -70,7 +70,7 @@ sudo ufw allow from <zabbix-proxy-ip> to any port 8008 proto tcp
 
 **e. Cross-check nhanh bằng chính toolkit:** `./axdb.sh health` (in `patronictl list` + `sync_state` + `replay_lag`) → so khớp với panel.
 
-**etcd quorum (tuỳ chọn):** `http.agent` item tới `http://<node>:2379/health` (mong `{"health":"true"}`).
+**etcd quorum:** import template **`zbx-template-etcd-health.yaml`** ("etcd Health Monitor Template for DB") → link AX-DB01/02/03. Nó dùng **agent-side** (agent2 curl `http://127.0.0.1:2379/health` local) → **KHÔNG hở 2379 ra office-net** (etcd chỉ nghe localhost+LAN, và không nên lộ ra ngoài). Cần UserParameter `etcd.health[*]` + macro `{$ETCD.ENDPOINT}`. Trigger `etcd UNHEALTHY on {HOST.NAME}` (High); ≥2/3 node unhealthy = mất quorum → Patroni read-only (tạo tay trigger cross-host nếu cần cảnh báo "quorum lost").
 
 ---
 

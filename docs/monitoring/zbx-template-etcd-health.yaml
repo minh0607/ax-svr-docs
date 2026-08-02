@@ -1,0 +1,51 @@
+zabbix_export:
+  version: '7.4'
+  template_groups:
+    - uuid: 9f8fa10fc4014d03848d1986a4f67554
+      name: Templates/Applications
+  templates:
+    - uuid: cc7ee602d50041dca15d74a880b6d7aa
+      template: 'etcd Health Monitor Template for DB'
+      name: 'etcd Health Monitor Template for DB'
+      description: |
+        Theo doi etcd /health (agent-side, khong ho 2379 ra office-net). Link vao ax-db01/02/03.
+        Can UserParameter tren agent (/etc/zabbix/zabbix_agent2.d/etcd.conf):
+          UserParameter=etcd.health[*],curl -s "$1" | grep -q '"health":"true"' && echo 1 || echo 0
+        Macro {$ETCD.ENDPOINT} = http://127.0.0.1:2379/health  (etcd nghe localhost+LAN).
+        Neu etcd bat TLS: doi macro sang https://... va them --cacert vao UserParameter.
+        Chi tiet: PREREQUISITES.md muc 2 (etcd).
+      groups:
+        - name: Templates/Applications
+      items:
+        - uuid: a63e120b4ae444ff80fd561cc4d89e0c
+          name: 'etcd: health'
+          key: 'etcd.health[{$ETCD.ENDPOINT}]'
+          delay: 1m
+          value_type: UNSIGNED
+          description: '1 = /health tra "health":"true" (node lanh, thay quorum) · 0 = unhealthy / etcd down.'
+          valuemap:
+            name: 'etcd health'
+          tags:
+            - tag: service
+              value: etcd
+          triggers:
+            - uuid: f39705b7059b4f9fbad07cdcf0e13f98
+              expression: 'last(/etcd Health Monitor Template for DB/etcd.health[{$ETCD.ENDPOINT}])=0'
+              name: 'etcd UNHEALTHY on {HOST.NAME}'
+              priority: HIGH
+              description: 'etcd node nay khong lanh. >=2/3 node unhealthy = mat quorum -> Patroni ve read-only.'
+              tags:
+                - tag: service
+                  value: etcd
+      macros:
+        - macro: '{$ETCD.ENDPOINT}'
+          value: 'http://127.0.0.1:2379/health'
+          description: 'Endpoint /health cua etcd (localhost). Doi https:// neu bat TLS.'
+      valuemaps:
+        - uuid: a026cc1093e04525a1bad98754ec4164
+          name: 'etcd health'
+          mappings:
+            - value: '0'
+              newvalue: 'UNHEALTHY'
+            - value: '1'
+              newvalue: 'healthy'
