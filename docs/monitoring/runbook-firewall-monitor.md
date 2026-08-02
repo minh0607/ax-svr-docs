@@ -8,6 +8,15 @@ Quy ước giá trị: **1 = firewall BẬT (an toàn)** · **0 = TẮT (cảnh 
 
 ---
 
+## 0. Cách nhanh nhất — chạy script setup (thay cho mục 1-2 làm tay)
+Copy script vào máy rồi chạy (tự tạo UserParameter + sudoers/Timeout + restart agent + test):
+- **Ubuntu:** `sudo ./setup-firewall-monitor-ubuntu.sh` (DB/NAS/Proxy)
+- **Windows:** `.\setup-firewall-monitor-windows.ps1` (PowerShell Admin — WEB01/02)
+
+Xong bước này thì bỏ qua mục 1-2, sang mục 3 (import + link template). Mục 1-2 dưới là để hiểu/làm tay.
+
+---
+
 ## 1. Linux — ufw
 `ufw status` cần root. Không chạy agent bằng root → **sudoers hẹp** (đúng mô hình least-privilege, giống cách làm Samba `smbstatus`).
 
