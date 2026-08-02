@@ -10,6 +10,7 @@
 - **Never mount the new disk over a live `/data`** — always `mv /data /data.old` first (a mount would shadow the data → PG sees an empty dir).
 - Keep `/data.old` until the node is verified healthy — that is the rollback. Delete it only after `check-storage` OK + Lag 0.
 - Between nodes: confirm `patronictl list` shows the cluster healthy (1 Leader + 1 Sync + 1 Replica, all running) before touching the next node.
+- **Do NOT skip step 4 (`chown postgres:postgres` + `chmod 700` the data dir).** If the data dir is not owned by `postgres` with mode `700`, Patroni cannot start/bootstrap and the node **never appears** in `patronictl list` — the symptom is: only 2 nodes shown, and `reinit` fails with `Error: No ... REPLICA among provided members`. Fix: run the two chown/chmod lines, then `sudo systemctl restart patroni`.
 
 ## Sync vs async (why this order)
 `synchronous_mode: true`, `synchronous_node_count: 1` → always exactly one **sync standby** (commits wait for it → zero data loss). The **async replica** may lag. Patroni auto-promotes an async replica to sync if the sync one leaves, so migrating the async node (DB03) first keeps a genuine sync standby available throughout.
