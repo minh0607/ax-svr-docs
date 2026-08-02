@@ -444,6 +444,60 @@ SQL
   echo "(superusers omitted — they bypass schema ACL; 'yes' may be inherited via a group)"
 }
 
+cmd_health() {                  # [db]   — one-shot cluster health (run on a DB node for full detail)
+  local db="${1:-postgres}"
+  local conf="${PATRONI_CONF:-/etc/patroni/patroni.yml}"
+  echo "==================== AX DB cluster health ===================="
+  echo "conn: $PSQL_ADMIN   ·   db: $db   ·   host: $(hostname 2>/dev/null || echo '?')"
+
+  echo "-- services --"
+  if command -v systemctl >/dev/null 2>&1; then
+    for svc in etcd patroni; do printf "  %-8s : %s\n" "$svc" "$(systemctl is-active "$svc" 2>/dev/null || echo n/a)"; done
+  else echo "  (systemctl not found — run on a DB node)"; fi
+
+  echo "-- etcd (DCS quorum) --"
+  if command -v etcdctl >/dev/null 2>&1; then
+    local eps="${ETCD_ENDPOINTS:-}"
+    if [ -z "$eps" ] && [ -f "$conf" ]; then
+      eps="$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:2379' "$conf" 2>/dev/null | sort -u | sed 's#^#http://#' | paste -sd, - || true)"
+    fi
+    if [ -n "$eps" ]; then etcdctl --endpoints="$eps" endpoint health 2>&1 | sed 's/^/  /' || true
+    else echo "  (set ETCD_ENDPOINTS=http://ip:2379,... — could not derive from $conf)"; fi
+  else echo "  (etcdctl not found — run on a DB node)"; fi
+
+  echo "-- patroni --"
+  if command -v patronictl >/dev/null 2>&1 && [ -f "$conf" ]; then
+    patronictl -c "$conf" list 2>&1 | sed 's/^/  /' || true
+    patronictl -c "$conf" show-config 2>/dev/null | grep -E 'synchronous_mode|synchronous_node_count' | sed 's/^/  cfg: /' || true
+  else echo "  (patronictl/$conf not found — run on a DB node)"; fi
+
+  echo "-- postgresql --"
+  local inrec; inrec="$($PSQL -d "$db" -tAc 'SELECT pg_is_in_recovery()' 2>/dev/null || echo '?')"
+  echo "  data_directory : $($PSQL -d "$db" -tAc 'SHOW data_directory' 2>/dev/null || echo '?')"
+  echo "  version        : $($PSQL -d "$db" -tAc 'SHOW server_version' 2>/dev/null || echo '?')"
+  if [ "$inrec" = f ]; then
+    echo "  role           : PRIMARY (read-write)"
+    echo "  replicas       :"
+    $PSQL -d "$db" -tAc "SELECT '    '||application_name||'  '||state||'  '||sync_state||'  replay_lag='||COALESCE(replay_lag::text,'-') FROM pg_stat_replication ORDER BY sync_state" 2>/dev/null || true
+    echo "  WAL archiver   :"
+    $PSQL -d "$db" -tAc "SELECT '    archived='||archived_count||'  failed='||failed_count||'  last='||COALESCE(last_archived_time::text,'-') FROM pg_stat_archiver" 2>/dev/null || true
+  elif [ "$inrec" = t ]; then
+    echo "  role           : replica (read-only)"
+  else
+    echo "  role           : ? (cannot connect via \$PSQL — check PSQL_ADMIN)"
+  fi
+
+  echo "-- disk (data dir) --"
+  local dd; dd="$($PSQL -d "$db" -tAc 'SHOW data_directory' 2>/dev/null || true)"
+  if [ -n "$dd" ]; then df -h "$dd" 2>/dev/null | sed 's/^/  /' || true; else echo "  (data_directory unknown)"; fi
+
+  echo "-- backup (pgBackRest) --"
+  if command -v pgbackrest >/dev/null 2>&1; then
+    { sudo -u postgres pgbackrest info 2>&1 || true; } | sed 's/^/  /'
+  else echo "  (pgbackrest not found here — check on the node holding the backup repo)"; fi
+  echo "=============================================================="
+}
+
 cmd_set_search_path() {         # <user> <schema[,schema2]|--reset>
   local user="${1:-}" path="${2:-}"
   [ -n "$user" ] && [ -n "$path" ] || die "Usage: axdb.sh set-search-path <user> <schema[,schema2]|--reset>"
@@ -908,6 +962,7 @@ axdb.sh — PostgreSQL administration (AX Svr)
   show schemas <db>                           List schemas (owner)
   list <roles|dbs|members <g>|grants <db>>    View roles/dbs/privileges
   check                                       Check connection (which user is connected)
+  health [db]                                 One-shot cluster health: services, etcd, patroni, replication, disk, backup
   help                                        This help
 
 Remote connection: export PSQL_ADMIN="psql -h 107.118.210.90 -U dbadmin"
@@ -954,10 +1009,11 @@ menu() {
  27) Permission overview (perm)
  28) Grant / revoke a SCHEMA privilege (USAGE/CREATE)
  29) Schema privilege overview (schema-perm)
+ 30) Cluster health check (health)
   0) Exit
 ==========================================
 M
-    read -rp "Select [0-29]: " ch || exit 0
+    read -rp "Select [0-30]: " ch || exit 0
     case "$ch" in
       1) _run cmd_create_admin ;;
       2) _run cmd_create_user_admin ;;
@@ -1002,6 +1058,7 @@ M
       27) read -rp "Database: " d; read -rp "User (empty=summary of all): " u; _run cmd_perm "$d" "$u" ;;
       28) read -rp "Action [grant/revoke]: " a; read -rp "Role: " r; read -rp "Database: " d; read -rp "Schema: " s; read -rp "Privilege [USAGE/CREATE/ALL]: " p; _run cmd_grant_schema "$a" "$r" "$d" "$s" "$p" ;;
       29) read -rp "Database: " d; read -rp "Schema: " s; _run cmd_schema_perm "$d" "$s" ;;
+      30) read -rp "Database (blank=postgres): " d; _run cmd_health "${d:-}" ;;
       0) echo "Bye."; exit 0 ;;
       *) echo "Invalid choice." ;;
     esac
@@ -1028,6 +1085,7 @@ case "$cmd" in
   grant-schema)       cmd_grant_schema grant "$@";;
   revoke-schema)      cmd_grant_schema revoke "$@";;
   schema-perm)        cmd_schema_perm "$@";;
+  health)             cmd_health "$@";;
   set-search-path)    cmd_set_search_path "$@";;
   set-owner)          cmd_set_owner "$@";;
   set-schema)         cmd_set_schema "$@";;
